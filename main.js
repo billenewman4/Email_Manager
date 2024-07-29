@@ -1,6 +1,7 @@
-import { filterContacts } from './email_todos.js';
+import { filterContacts } from './filter_contacts.js';
 import { queryDatabase } from './notion_table.js';
-// Importing the function from notion_table.js
+import { generateDraftEmails } from './emailCreator.js';
+import { sendDraftEmails } from './sendDrafts.js';
 
 // global variables
 const statusDaysMap = {
@@ -13,18 +14,17 @@ const statusDaysMap = {
     'No need for follow-up': -1  // Example: no follow-up needed = -1
 };
 
-
 // Main function to run the process
 const main = async () => {
     try {
         const contacts = await queryDatabase(); // Await the Promise to get the resolved contacts array
-        console.log("got contacts", contacts);
+        //console.log("got contacts", contacts);
         const filteredContacts = filterContacts(contacts, statusDaysMap); // Process the resolved contacts
-        console.log("Filtered Contacts:", filteredContacts);
+        const draftEmails = await generateDraftEmails(filteredContacts);
+        await sendDraftEmails(draftEmails); // Send all draft emails to yourself
     } catch (error) {
         console.error("Error in main function:", error);
     }
 };
-
 // Execute the main function
 main();
