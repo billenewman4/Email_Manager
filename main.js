@@ -9,7 +9,8 @@ const statusDaysMap = {
     '1st Message Sent': 10,      // Example: follow-up in 10 days
     'Sent LinkedIn Request': 5,  // Example: follow-up in 5 days
     'No Contact Yet': 1,         // Example: follow-up in 30 days
-    'Closed': 50                 // Example: no follow-up needed = -1
+    'Closed': 50,                 // Example: follow-up in 50 days
+    'No need for follow-up': -1  // Example: no follow-up needed = -1
 };
 
 
