@@ -31,7 +31,7 @@ const queryDatabase = async () => {
     //console.log("Database query result:", data);
     const contacts = processPages(data.results);
     //console.log(`Retrieved ${contacts.length} contacts.`);
-    console.log("Contacts array:", contacts);
+    //console.log("Contacts array:", contacts);
     contacts.forEach(contact => contact.printProperties());
     return contacts;
   } catch (error) {
