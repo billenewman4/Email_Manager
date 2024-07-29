@@ -7,7 +7,14 @@
 const filterContacts = (contacts, statusDaysMap) => {
     return contacts
       .filter(contact => contact.isReachOutNeeded(statusDaysMap))
-      .map(contact => contact.name);
+      .map(contact => {
+        return {
+          name: contact.name,
+          email: contact.email,
+          role: contact.role,
+          meetingNotes: contact.meetingNotes
+        }
+      });
   };
   
   export { filterContacts };
