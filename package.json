@@ -1,0 +1,15 @@
+{
+  "name": "email_manager",
+  "version": "1.0.0",
+  "main": "notion_table.js",
+  "type": "module",
+  "scripts": {
+    "start": "node notion_table.js"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "date-fns": "^3.6.0",
+    "dotenv": "^16.4.5",
+    "node-fetch": "^3.3.2"
+  }
+}
