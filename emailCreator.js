@@ -19,6 +19,7 @@ async function callGPT4(contact, exampleEmails) {
     const openai = new OpenAI({
             apiKey: await getSecret('OpenAPI_KEY')
     })
+    console.log(contact);
   const { name, email, company, role, linkedInURL, status, nextSteps } = contact;
   var userMessage = '';
     if (status === '1st message sent') {
@@ -53,13 +54,17 @@ async function callGPT4(contact, exampleEmails) {
     `;
     }else{
         console.log("Status is not 1st message sent or No Contact Yet");
+        console.log("Status is: ", status);
         userMessage = `
-        Write a follow-up email to ${name} at ${company}. 
+        Write a email to ${name} at ${company}. 
         - Role: ${role}
         - Email: ${email}
         - LinkedIn: ${linkedInURL}
         - Status: ${status}
         - Next Steps: ${nextSteps}
+
+        Here are some example emails:
+        ${exampleEmails['first']}
         
         The email should be professional and courteous while being pithy and powerful. 
         `;
@@ -83,9 +88,9 @@ async function generateDraftEmails(contacts) {
   exampleEmails['first'] = loadExampleEmails(path.join(__dirname, '/email_examples/firstEmails.txt'));
   exampleEmails['follow_up'] = loadExampleEmails(path.join(__dirname, '/email_examples/follow_up_Emails.txt'));
   const draftEmails = [];
-
   for (const contact of contacts) {
     try {
+      console.log(`Generating draft email for ${contact.name}...`);
       const draftEmail = await callGPT4(contact, exampleEmails);
       draftEmails.push({
         contact,
@@ -95,7 +100,7 @@ async function generateDraftEmails(contacts) {
       console.error(`Failed to generate draft email for ${contact.name}:`, error);
     }
   }
-
+  console.log(draftEmails)
   return draftEmails;
 }
 

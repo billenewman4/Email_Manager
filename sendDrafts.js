@@ -28,10 +28,18 @@ async function sendEmail(to, subject, text) {
 }
 
 // Function to send all draft emails in one email
-async function sendDraftEmails(draftEmails) {
+async function sendDraftEmails(draftEmails, contacts) {
     const MY_EMAIL = await getSecret("MY_EMAIL");
     const emailAddress = MY_EMAIL; // Your email address to receive the drafts
-
+    let emailHeader = 'List of people to contact:\n\n';
+    for (const contact of contacts) {
+        emailHeader += `Name: ${contact.name}\n`;
+        emailHeader += `Email: ${contact.email}\n`;
+        emailHeader += `Company: ${contact.company}\n`;
+        emailHeader += `LinkedIn URL: ${contact.linkedInURL}\n`;
+        emailHeader += `Status: ${contact.status}\n`;
+        emailHeader += `------------------------\n`;
+    }
     // Concatenate all draft emails into a single string
     let emailBody = 'Here are your draft emails:\n\n';
     for (const { contact, draftEmail } of draftEmails) {
@@ -41,8 +49,9 @@ async function sendDraftEmails(draftEmails) {
     }
 
     const subject = 'All Draft Emails';
+    const email = emailHeader + emailBody;
     try {
-        await sendEmail(emailAddress, subject, emailBody);
+        await sendEmail(emailAddress, subject, email);
         console.log(`All draft emails sent successfully.`);
     } catch (error) {
         console.error(`Failed to send draft emails:`, error);

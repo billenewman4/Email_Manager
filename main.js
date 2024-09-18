@@ -25,9 +25,9 @@ app.get('/run', async (req, res) => {
         const contacts = await queryDatabase(); // Await the Promise to get the resolved contacts array
         console.log("Successfully retrieved contacts from the database.");
         const filteredContacts = filterContacts(contacts, statusDaysMap); // Process the resolved contacts
-        console.log("Successfully filtered contacts");
+        console.log("Successfully filtered contacts", filteredContacts);
         const draftEmails = await generateDraftEmails(filteredContacts);
-        await sendDraftEmails(draftEmails); // Send all draft emails to yourself
+        await sendDraftEmails(draftEmails, filteredContacts); // Send all draft emails to yourself
         res.send('Draft emails generated and sent successfully!');
     } catch (error) {
         console.error("Error in main function:", error);
