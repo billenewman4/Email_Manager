@@ -11,7 +11,9 @@ const filterContacts = (contacts, statusDaysMap) => {
         return {
           name: contact.name,
           email: contact.email,
+          status: contact.status,
           role: contact.role,
+          company: contact.company,
           meetingNotes: contact.meetingNotes
         }
       });

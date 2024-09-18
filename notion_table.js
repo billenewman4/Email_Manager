@@ -2,18 +2,23 @@
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import Contact from './contacts.js';
+import { getSecret } from './secrets.js';
+
 
 // Load environment variables from .env file
 dotenv.config();
 
+
 // Function to query database entries
 const queryDatabase = async () => {
-  const url = `https://api.notion.com/v1/databases/${process.env.DATABASE_ID}/query`;
-
+  const DATABASE_ID = await getSecret('DATABASE_ID');
+  console.log("DATABASE_ID:", DATABASE_ID);
+  const NOTION_TOKEN = await getSecret('NOTION_TOKEN');
+  const url = `https://api.notion.com/v1/databases/${DATABASE_ID}/query`;
   const options = {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.NOTION_TOKEN}`,
+      'Authorization': `Bearer ${NOTION_TOKEN}`,
       'Notion-Version': '2022-06-28',
       'Content-Type': 'application/json'
     },
