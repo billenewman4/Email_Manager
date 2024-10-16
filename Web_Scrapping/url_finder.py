@@ -1,22 +1,18 @@
 import os
-from dotenv import load_dotenv
 import requests
+import sys
+from secrets import get_secret
 
 def url_finder(company_name):
-   # Get the current script's directory
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    print(f"Starting url_finder for company: {company_name}", file=sys.stderr)
 
-    # Navigate up to the parent directory where .env is located
-    parent_dir = os.path.dirname(current_dir)
-
-    # Construct the path to the .env file
-    dotenv_path = os.path.join(parent_dir, '.env')
-
-    # Load the .env file
-    load_dotenv(dotenv_path)
-
-    # Now you can use os.getenv to get your API key
-    api_key = os.getenv("SERPAPI_KEY")
+    # Get the API key using the get_secret function
+    api_key = get_secret("SERPAPI_KEY")
+    if api_key:
+        print("API key loaded successfully", file=sys.stderr)
+    else:
+        print("ERROR: API key not found or is None", file=sys.stderr)
+        return []
 
     params = {
         "engine": "google",
@@ -24,21 +20,26 @@ def url_finder(company_name):
         "api_key": api_key
     }
 
+    print("Sending request to SerpAPI", file=sys.stderr)
     response = requests.get('https://serpapi.com/search', params=params)
-    data = response.json()
+    print(f"Received response with status code: {response.status_code}", file=sys.stderr)
 
+    data = response.json()
+    print(f"Response data keys: {data.keys()}", file=sys.stderr)
 
     # Check if 'organic_results' exists in the response
     if 'organic_results' in data:
         links = []
         for result in data['organic_results']:
             links.append(result['link'])
+        print(f"Found {len(links)} links", file=sys.stderr)
         return links
     else:
-        print("No 'organic_results' found in the response.")
-        print("Available keys in the response:", data.keys())
+        print("No 'organic_results' found in the response.", file=sys.stderr)
+        print("Available keys in the response:", data.keys(), file=sys.stderr)
         return []
+
     # Check for error messages
     if 'error' in data:
-        print("Error message:", data['error'])
+        print("Error message:", data['error'], file=sys.stderr)
         return []
