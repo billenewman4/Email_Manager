@@ -31,6 +31,33 @@ async function callPythonScraper(query) {
     }
 }
 
+// New function to generate a sample contact
+function generateSampleContact() {
+    return {
+        id: 'sample-id-123',
+        name: 'Aaref Hilaly',
+        createdTime: new Date().toISOString(),
+        lastEditedTime: new Date().toISOString(),
+        url: 'https://www.notion.so/Aaref-Hilaly-sample-id-123',
+        email: 'Aaref.Hilaly@example.com',
+        linkedInURL: null,
+        dateLastContacted: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+        status: '1st Message Sent',
+        nextSteps: 'Follow up on product demo',
+        role: 'Venture Partner',
+        contactType: 'Email',
+        meetingNotes: null,
+        company: 'Bain Capital Ventures',
+        companyInfo: null
+    };
+}
+
+// New endpoint to return a sample contact
+app.get('/sample-contact', (req, res) => {
+    const sampleContact = generateSampleContact();
+    res.json(sampleContact);
+});
+
 // Endpoint to trigger the main process
 app.get('/run', async (req, res) => {
     try {

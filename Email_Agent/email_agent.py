@@ -18,7 +18,7 @@ def create_email_agent(template_variables, template_string):
     It retrieves the OpenAI API key from a secret manager and initializes the ChatOpenAI model.
     """
     # Retrieve the OpenAI API key from the secret manager
-    api_key = get_secret('OPENAI_API_KEY')
+    api_key = get_secret('OpenAPI_KEY')
     if not api_key:
         raise ValueError("Failed to retrieve OpenAI API key from Secret Manager")
     
