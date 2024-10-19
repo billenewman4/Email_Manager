@@ -37,19 +37,14 @@ if __name__ == "__main__":
 
             # Use the sample contact data to draft an email
             draft = draft_email(email_agent, 
-                                sender="Bill Newman", # need to upate to user input name
+                                sender="Bill Newman", # need to update to user input name
                                 receiver=sample_contact['name'],
-                                context=f"First draft to {sample_contact['name']} about {sample_contact['company']}",
-                                tone="professional")
+                                context=f"Please write an email to reach out to {sample_contact['name']} at {sample_contact['company']} as a student reaching out to see if he/she would be willing to talk about his/her work with me.",
+                                tone="professional",
+                                example_email="Dear [Name],\n\nI hope this email finds you well. My name is [Your Name], and I'm a student at [Your University]. I came across your work at [Company] and was fascinated by [specific aspect of their work].\n\nI would be grateful for the opportunity to speak with you about your experiences and insights in the field. Would you be willing to spare 15-20 minutes for a brief call or video chat?\n\nThank you for your time and consideration.\n\nBest regards,\n[Your Name]",
+                                additional_context=context,
+                                instructions="Please use the provided example email as a general structure, but personalize it using the additional context about the person and their company. Ensure the email is concise, respectful, and demonstrates genuine interest in the recipient's work.")
             print("\nDraft Email:")
-            print(draft)
-        else:
-            print("Failed to get sample contact. Using default values.")
-            draft = draft_email(email_agent, 
-                                sender="John Doe", 
-                                receiver="Jane Smith", 
-                                context="project update",
-                                tone="professional")
             print(draft)
     except Exception as e:
         print(f"An error occurred: {str(e)}")
