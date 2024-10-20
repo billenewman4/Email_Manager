@@ -33,7 +33,7 @@ def create_email_agent(template_variables, template_string):
     email_draft = email_draft_prompt | llm | StrOutputParser()
 
     # Create the email analysis prompt
-    email_analysis_prompt = ChatPromptTemplate.from_template("Is this a good email? {email}")
+    email_analysis_prompt = ChatPromptTemplate.from_template("Improve this email and give me a new version ? {email}")
 
     # Create and return the final chain
     return (
