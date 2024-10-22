@@ -22,16 +22,31 @@ const statusDaysMap = {
 app.get('/run', async (req, res) => {
     try {
         console.log("Starting the main process...");
-        const contacts = await queryDatabase(); // Await the Promise to get the resolved contacts array
+        const contacts = await queryDatabase();
         console.log("Successfully retrieved contacts from the database.");
-        const filteredContacts = filterContacts(contacts, statusDaysMap); // Process the resolved contacts
+        const filteredContacts = filterContacts(contacts, statusDaysMap);
         console.log("Successfully filtered contacts", filteredContacts);
         const draftEmails = await generateDraftEmails(filteredContacts);
-        await sendDraftEmails(draftEmails, filteredContacts); // Send all draft emails to yourself
-        res.send('Draft emails generated and sent successfully!');
+        
+        // Print emails to console
+        await sendDraftEmails(draftEmails, filteredContacts);
+        
+        // Prepare HTML for displaying emails on localhost
+        let htmlContent = '<h1>Generated Draft Emails</h1>';
+        for (const { contact, draftEmail } of draftEmails) {
+            htmlContent += `
+                <h2>Email for ${contact.name}</h2>
+                <p><strong>To:</strong> ${contact.email}</p>
+                <p><strong>Subject:</strong> Draft Email for ${contact.name}</p>
+                <pre>${draftEmail}</pre>
+                <hr>
+            `;
+        }
+        
+        res.send(htmlContent);
     } catch (error) {
         console.error("Error in main function:", error);
-        res.status(500).send('An error occurred while generating and sending draft emails.');
+        res.status(500).send(`An error occurred: ${error.message}`);
     }
 });
 
