@@ -1,9 +1,8 @@
-from email_agent import create_email_agent, draft_email
+from email_agent import EmailAgent
 from secrets import get_secret
 import requests
 import json
 from web_agent import tavily_context_search
-from relevant_content import create_relevant_content_extractor
 
 def get_sample_contact():
     try:
@@ -20,13 +19,6 @@ def search_web(contact):
     context['person_info'] = tavily_context_search(contact['name'])
     return context
 
-def extract_relevant_content(extractor, raw_context, person_name, company_name):
-    return extractor.invoke({
-        "raw_context": raw_context,
-        "person_name": person_name,
-        "company_name": company_name
-    })
-
 if __name__ == "__main__":
     try:
         # Step 1: Get sample contact
@@ -41,31 +33,20 @@ if __name__ == "__main__":
         print("\nWeb Search Results:")
         print(json.dumps(web_context, indent=2))
 
-        # Step 3: Extract relevant content
-        content_extractor = create_relevant_content_extractor()
-        relevant_content = extract_relevant_content(
-            content_extractor,
-            web_context['company_info'] + web_context['person_info'],
+        # Step 3: Create EmailAgent and process contact
+        email_agent = EmailAgent()
+        raw_context = web_context['company_info'] + web_context['person_info']
+        experiences, email = email_agent.process_contact(
             sample_contact['name'],
-            sample_contact['company']
+            sample_contact['company'],
+            raw_context
         )
-        print("\nRelevant Content:")
-        print(relevant_content)
 
-        # Step 4: Draft email
-        variables = ["sender", "receiver", "context", "tone", "relevant_content"]
-        template = "Draft a {tone} email from {sender} to {receiver} regarding {context}. Use this relevant information: {relevant_content}"
-        email_agent = create_email_agent(variables, template)
-        
-        draft = draft_email(email_agent, 
-                            sender="Bill Newman",  # need to update to user input name
-                            receiver=sample_contact['name'],
-                            context=f"reaching out as a student to discuss {sample_contact['name']}'s work at {sample_contact['company']}",
-                            tone="professional",
-                            relevant_content=relevant_content)
-        
+        print("\nExtracted Experiences:")
+        print(experiences)
+
         print("\nDraft Email:")
-        print(draft)
+        print(email)
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")
