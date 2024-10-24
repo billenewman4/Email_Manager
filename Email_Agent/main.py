@@ -1,9 +1,9 @@
-from email_agent import create_email_agent, draft_email
+from email_agent import EmailAgent
+from contacts import Contact
 from secrets import get_secret
 import requests
 import json
 from web_agent import tavily_context_search
-from relevant_content import create_relevant_content_extractor
 
 def get_sample_contact():
     try:
@@ -16,56 +16,57 @@ def get_sample_contact():
 
 def search_web(contact):
     context = {}
-    context['company_info'] = tavily_context_search(contact['company'])
-    context['person_info'] = tavily_context_search(contact['name'])
+    context['company_info'] = tavily_context_search(contact.company)
+    context['person_info'] = tavily_context_search(contact.name)
     return context
-
-def extract_relevant_content(extractor, raw_context, person_name, company_name):
-    return extractor.invoke({
-        "raw_context": raw_context,
-        "person_name": person_name,
-        "company_name": company_name
-    })
 
 if __name__ == "__main__":
     try:
         # Step 1: Get sample contact
-        sample_contact = get_sample_contact()
-        if not sample_contact:
+        sample_contact_data = get_sample_contact()
+        if not sample_contact_data:
             raise ValueError("Failed to get sample contact")
         print("Sample Contact:")
-        print(json.dumps(sample_contact, indent=2))
+        print(json.dumps(sample_contact_data, indent=2))
+
+        # Create Contact object
+        contact = Contact(sample_contact_data)
+        print("\nContact object created successfully")
+
+        # Create EmailAgent
+        email_agent = EmailAgent(contact)
+        print("\nEmailAgent created successfully")
 
         # Step 2: Search the web
-        web_context = search_web(sample_contact)
+        web_context = search_web(contact)
         print("\nWeb Search Results:")
         print(json.dumps(web_context, indent=2))
 
-        # Step 3: Extract relevant content
-        content_extractor = create_relevant_content_extractor()
-        relevant_content = extract_relevant_content(
-            content_extractor,
-            web_context['company_info'] + web_context['person_info'],
-            sample_contact['name'],
-            sample_contact['company']
-        )
-        print("\nRelevant Content:")
+        # Step 3: Extract relevant content and update context
+        raw_context = web_context['company_info'] + "\n" + web_context['person_info']
+        relevant_content = email_agent.extract_relevant_content(raw_context)
+        print("\nRelevant Content Extracted:")
         print(relevant_content)
 
+        email_agent.update_context("Web search results", relevant_content)
+        print("\nContext updated successfully")
+
         # Step 4: Draft email
-        variables = ["sender", "receiver", "context", "tone", "relevant_content"]
-        template = "Draft a {tone} email from {sender} to {receiver} regarding {context}. Use this relevant information: {relevant_content}"
-        email_agent = create_email_agent(variables, template)
-        
-        draft = draft_email(email_agent, 
-                            sender="Bill Newman",  # need to update to user input name
-                            receiver=sample_contact['name'],
-                            context=f"reaching out as a student to discuss {sample_contact['name']}'s work at {sample_contact['company']}",
-                            tone="professional",
-                            relevant_content=relevant_content)
-        
-        print("\nDraft Email:")
-        print(draft)
+        print("\nStarting to draft email (main)...")
+        email_agent.draft_email(
+            tone="professional",
+            new_context=f"reaching out as a student to discuss {contact.name}'s work at {contact.company}"
+        )
+        print("\nEmail drafted successfully", email_agent.latest_draft)
+
+        # Step 5: Improve email
+        print("\nStarting to improve email...")
+        improved_draft = email_agent.improve_email()
+        print("\nEmail improved successfully")
+
+        # Optional: Print the current context
+        print("\nCurrent Context:")
+        print(email_agent.get_current_context())
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")
