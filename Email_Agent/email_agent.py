@@ -1,27 +1,92 @@
 from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
 from langchain_openai import ChatOpenAI
+from langchain.schema.output_parser import StrOutputParser
+from langchain.schema import HumanMessage
 from secrets import get_secret
+from contacts import Contact
+from langchain.chains import LLMChain
 
 
-def create_email_agent(variables, template):
-    openai_api_key = get_secret("OpenAPI_KEY")
-    llm = ChatOpenAI(temperature=0.7, model="gpt-4", openai_api_key=openai_api_key)
-    prompt = PromptTemplate(input_variables=variables, template=template)
-    return LLMChain(llm=llm, prompt=prompt)
+class EmailAgent:
+    def __init__(self, contact: Contact):
+        self.llm = self._create_llm()
+        self.latest_draft = None
+        self.contact = contact
+        self.context = ""  # Initialize an empty context
 
+    def _create_llm(self):
+        openai_api_key = get_secret("OpenAPI_KEY")
+        return ChatOpenAI(temperature=0.7, model="gpt-4", openai_api_key=openai_api_key)
 
-def draft_email(email_agent, **kwargs):
-    return email_agent.run(**kwargs)
+    def extract_relevant_content(self, raw_context):
+        template = """
+        Given the following context, extract the most relevant information for an email from a student to {person_name} at {company_name}. 
+        Focus on key points that would be important for the email, such as:
+        - Specific experiences from this person that are relevant to the company/industry but unique to that person
+        - Specific details about the company that would be justifying the email and make it more personal
+        - Any connections or mutual interests
+        - Reasons for interest in the company
 
+        Raw context:
+        {raw_context}
 
-def improve_email_with_examples(original_draft):
-    openai_api_key = get_secret("OpenAPI_KEY")
-    llm = ChatOpenAI(temperature=0.7, model="gpt-4", openai_api_key=openai_api_key)
+        Extracted relevant content:
+        """
+        prompt = PromptTemplate(
+            input_variables=["raw_context", "person_name", "company_name"],
+            template=template
+        )
+        formatted_prompt = prompt.format(
+            raw_context=raw_context, 
+            person_name=self.contact.name, 
+            company_name=self.contact.company
+        )
+        messages = [HumanMessage(content=formatted_prompt)]
+        return self.llm.invoke(messages).content
 
-    improvement_template = PromptTemplate(
-        input_variables=["original_draft"],
-        template="""
+    def update_context(self, new_context, raw_context=None):
+        if raw_context:
+            relevant_content = self.extract_relevant_content(raw_context)
+            new_context = f"{new_context}\n\nRelevant details:\n{relevant_content}"
+        
+        if self.context:
+            self.context += f"\n\nAdditional context:\n{new_context}"
+        else:
+            self.context = new_context
+
+    def draft_email(self, tone, new_context=None, raw_context=None):
+
+        if new_context:
+            self.update_context(new_context, raw_context)
+
+        template = """Draft a {tone} email to {receiver_name} at {receiver_company} regarding the following context:
+
+        {context}
+
+        Draft:"""
+        prompt = PromptTemplate(
+            input_variables=["receiver_name", "receiver_company", "context", "tone"],
+            template=template
+        )
+        
+        chain = prompt | self.llm | StrOutputParser()
+        print("Starting to draft email...")
+        self.latest_draft = chain.invoke({
+            "receiver_name": self.contact.name,
+            "receiver_company": self.contact.company,
+            "context": self.context,
+            "tone": tone
+        })
+        
+        return self.latest_draft
+
+    def improve_email(self, original_draft=None):
+        if original_draft is None:
+            if self.latest_draft is None:
+                raise ValueError("No draft available to improve. Please draft an email first.")
+            original_draft = self.latest_draft
+
+        improvement_template = """
         Your task is to improve the given email draft. Here are a few examples of well-written emails from students to professionals:
 
         Example 1:
@@ -59,16 +124,31 @@ def improve_email_with_examples(original_draft):
 
         Improved version:
         """
-    )
-    
-    improvement_chain = LLMChain(llm=llm, prompt=improvement_template)
-    improved_draft = improvement_chain.run(original_draft=original_draft)
-    
-    return improved_draft
+
+        prompt = PromptTemplate(
+            input_variables=["original_draft"],
+            template=improvement_template
+        )
+
+        chain =  prompt | self.llm | StrOutputParser()   
+
+        print("Starting to improve email...")
+        self.latest_draft = chain.invoke({"original_draft": original_draft})
+        print("Email improved successfully")
+        print("Improved draft:", self.latest_draft)
+
+        return self.latest_draft
+
+    def get_latest_draft(self):
+        return self.latest_draft
+
+    def get_current_context(self):
+        return self.context
 
 # Example usage:
-# template_vars = ["sender", "receiver", "context", "tone"]
+# variables = ["sender", "receiver", "context", "tone"]
 # template = "Draft a {tone} email from {sender} to {receiver} regarding {context}."
-# email_agent = create_email_agent(template_vars, template)
-# draft = draft_email(email_agent, sender="John Doe", receiver="Jane Smith", context="project proposal", tone="professional")
-# print(draft)
+# email_agent = EmailAgent(variables, template)
+# draft = email_agent.draft_email(sender="John Doe", receiver="Jane Smith", context="project proposal", tone="professional")
+# improved_draft = email_agent.improve_email(draft)
+# print(improved_draft)
