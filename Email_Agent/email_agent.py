@@ -54,29 +54,56 @@ class EmailAgent:
         else:
             self.context = new_context
 
-    def draft_email(self, tone, new_context=None, raw_context=None):
-
+    def draft_email(self, tone, sender_info, new_context=None, raw_context=None):
         if new_context:
             self.update_context(new_context, raw_context)
 
-        template = """Draft a {tone} email to {receiver_name} at {receiver_company} regarding the following context:
+        template = """Draft a {tone} email from a student to {receiver_name} at {receiver_company} regarding the following context:
 
-        {context}
+        Receiver Context:
+        {receiver_context}
+
+        Sender Information:
+        {sender_info}
+
+        Email Purpose:
+        {email_purpose}
+
+        Consider the following guidelines:
+        1. Briefly introduce yourself using relevant information from the sender's background.
+        2. Explain the purpose of your email, relating it to the receiver's work or company. Please note the sender will be reaching out about the current company the reciever is working at.
+        3. Highlight 1-2 key points from your background that are most relevant to the receiver or their company.
+        4. Express your interest in the company or the receiver's work, using specific details from the receiver context. If parallels exist in background (for example worked at the same company before), mention them but if nothing exists do not force it.
+        5. Include a clear call to action or request (e.g., a brief meeting, a response to a question).
+        6. Close with a polite and professional sign-off.
+
+        A few notes:
+        - The sender is a student reaching out to the receiver, but the email should not be too cringy or too excited.
+        - The sender is reaching out about the current company the receiver is working at.
+        - You do not have to use every single detail from the receiver context, only use what is most relevant.
+        - The sender is not trying to sell themselves, they are reaching out to learn more about the receiver's work and the company.
 
         Draft:"""
+
         prompt = PromptTemplate(
-            input_variables=["receiver_name", "receiver_company", "context", "tone"],
+            input_variables=["tone", "receiver_name", "receiver_company", "receiver_context", "sender_info", "email_purpose"],
             template=template
         )
         
         chain = prompt | self.llm | StrOutputParser()
-        print("Starting to draft email...")
+        
+        print("Sending request to LLM...")
         self.latest_draft = chain.invoke({
+            "tone": tone,
             "receiver_name": self.contact.name,
             "receiver_company": self.contact.company,
-            "context": self.context,
-            "tone": tone
+            "receiver_context": self.context,
+            "sender_info": sender_info,
+            "email_purpose": f"reaching out as a student to discuss {self.contact.name}'s work at {self.contact.company}"
         })
+        print("Received response from LLM")
+        print("Draft email:", self.latest_draft)
+        print("Email drafted successfully")
         
         return self.latest_draft
 
@@ -87,7 +114,7 @@ class EmailAgent:
             original_draft = self.latest_draft
 
         improvement_template = """
-        Your task is to improve the given email draft. Here are a few examples of well-written emails from students to professionals:
+        Your task is to improve the given email draft. Here are a few examples of well-written emails from students to professionals. Please modify the email to match the tone and style as well as using the structure and sender examples as inspiration:
 
         Example 1:
         Dear Dr. Martinez,
@@ -145,6 +172,179 @@ class EmailAgent:
     def get_current_context(self):
         return self.context
 
+    def extract_from_resume(self, resume_text):
+        template = """
+        Given the following resume, extract the most relevant information for an email from a student to {person_name} at {company_name}. 
+        Focus on:
+        - Educational background relevant to the company's field
+        - Work experiences or internships that align with the company's interests
+        - Technical skills or certifications that would be valuable to the company
+        - Notable projects or achievements that demonstrate capability
+
+        Resume:
+        {resume_text}
+
+        Extracted relevant content:
+        """
+        prompt = PromptTemplate(
+            input_variables=["resume_text", "person_name", "company_name"],
+            template=template
+        )
+        chain = prompt | self.llm | StrOutputParser()
+        return chain.invoke({
+            "resume_text": resume_text, 
+            "person_name": self.contact.name, 
+            "company_name": self.contact.company
+        })
+
+    def extract_from_career_interests(self, career_interests):
+        template = """
+        Given the following career interests, extract the most relevant information for an email from a student to {person_name} at {company_name}. 
+        Focus on:
+        - Specific areas of interest that align with the company's work
+        - Long-term career goals that the company could help achieve
+        - Why the student is passionate about these areas
+        - How these interests relate to the company's mission or recent projects
+
+        Career Interests:
+        {career_interests}
+
+        Extracted relevant content:
+        """
+        prompt = PromptTemplate(
+            input_variables=["career_interests", "person_name", "company_name"],
+            template=template
+        )
+        chain = prompt | self.llm | StrOutputParser()
+        return chain.invoke({
+            "career_interests": career_interests, 
+            "person_name": self.contact.name, 
+            "company_name": self.contact.company
+        })
+
+    def extract_from_key_accomplishments(self, accomplishments):
+        template = """
+        Given the following key accomplishments, extract the most relevant information for an email from a student to {person_name} at {company_name}. 
+        Focus on:
+        - Achievements that demonstrate skills valuable to the company
+        - Projects or experiences that align with the company's work
+        - Leadership roles or initiatives that show proactivity
+        - Awards or recognitions that highlight excellence in relevant areas
+
+        Key Accomplishments:
+        {accomplishments}
+
+        Extracted relevant content:
+        """
+        prompt = PromptTemplate(
+            input_variables=["accomplishments", "person_name", "company_name"],
+            template=template
+        )
+        chain = prompt | self.llm | StrOutputParser()
+        return chain.invoke({
+            "accomplishments": accomplishments, 
+            "person_name": self.contact.name, 
+            "company_name": self.contact.company
+        })
+
+    def combine_extracted_content(self, resume_content, interests_content, accomplishments_content):
+        combined_content = f"""
+        Resume Highlights:
+        {resume_content}
+
+        Career Interests:
+        {interests_content}
+
+        Key Accomplishments:
+        {accomplishments_content}
+        """
+
+        # Summarize if the combined content is too long
+        if len(combined_content) > 20000:  # You can adjust this threshold
+            summarization_template = """
+            Summarize the following extracted content, focusing on the most important points for an email to {person_name} at {company_name}. 
+            Ensure the summary includes a balanced representation of the resume highlights, career interests, and key accomplishments:
+
+            {content}
+
+            Summarized content:
+            """
+            summarization_prompt = PromptTemplate(
+                input_variables=["content", "person_name", "company_name"],
+                template=summarization_template
+            )
+            summarization_chain = prompt | self.llm | StrOutputParser()
+            combined_content = summarization_chain.invoke({
+                "content": combined_content, 
+                "person_name": self.contact.name, 
+                "company_name": self.contact.company
+            })
+
+        return combined_content
+
+    def extract_all_relevant_content(self, resume, career_interests, key_accomplishments):
+        resume_content = self.extract_from_resume(resume)
+        interests_content = self.extract_from_career_interests(career_interests)
+        if isinstance(key_accomplishments, list):
+            key_accomplishments = "\n".join(key_accomplishments)
+        accomplishments_content = self.extract_from_key_accomplishments(key_accomplishments)
+
+        return self.combine_extracted_content(resume_content, interests_content, accomplishments_content)
+
+    def critique_email(self, draft):
+        template = """
+        Evaluate the following email draft and provide specific critiques. Focus on:
+        1. As a student is this an email I would feel comfortable sending to a professional. Do I come accross as overally professional or bragging?
+        2. Does this email sound unique to the sender/reciever or is it generic (e.g., something almost any student could send)
+        3. Is every word or detail in the email in some way relevant to the reciever? 
+        4. Is the email pithy enough? These are busy professionals that don't have a ton of time to read long emails
+
+        Please be extremely critical with your feedback for best results
+
+        For each aspect, provide:
+        - Specific feedback
+        - Suggested improvements
+
+        Email Draft:
+        {draft}
+
+        Critique:
+        """
+        
+        prompt = PromptTemplate(
+            input_variables=["draft"],
+            template=template
+        )
+        
+        chain = prompt | self.llm | StrOutputParser()
+        return chain.invoke({"draft": draft})
+
+    def revise_with_critique(self, draft, critique):
+        template = """
+        Revise the following email draft based on the provided critique. 
+        Maintain the core message while addressing the specific feedback points.
+
+        Original Draft:
+        {draft}
+
+        Critique:
+        {critique}
+
+        Revised Draft:
+        """
+        
+        prompt = PromptTemplate(
+            input_variables=["draft", "critique"],
+            template=template
+        )
+        
+        chain = prompt | self.llm | StrOutputParser()
+        return chain.invoke({
+            "draft": draft,
+            "critique": critique
+        })
+
+
 # Example usage:
 # variables = ["sender", "receiver", "context", "tone"]
 # template = "Draft a {tone} email from {sender} to {receiver} regarding {context}."
@@ -152,3 +352,6 @@ class EmailAgent:
 # draft = email_agent.draft_email(sender="John Doe", receiver="Jane Smith", context="project proposal", tone="professional")
 # improved_draft = email_agent.improve_email(draft)
 # print(improved_draft)
+
+
+
