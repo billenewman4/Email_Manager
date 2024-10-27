@@ -4,13 +4,15 @@ from langchain.schema.output_parser import StrOutputParser
 from langchain.schema import HumanMessage
 from secrets import get_secret
 from contacts import Contact
+from sender import Sender
 from langchain.chains import LLMChain
 
 
 class EmailAgent:
-    def __init__(self, contact: Contact):
+    def __init__(self, contact: Contact, sender: Sender):
         self.llm = self._create_llm()
         self.latest_draft = None
+        self.sender = sender
         self.contact = contact
         self.context = ""  # Initialize an empty context
 
@@ -44,16 +46,6 @@ class EmailAgent:
         messages = [HumanMessage(content=formatted_prompt)]
         return self.llm.invoke(messages).content
 
-    def update_context(self, new_context, raw_context=None):
-        if raw_context:
-            relevant_content = self.extract_relevant_content(raw_context)
-            new_context = f"{new_context}\n\nRelevant details:\n{relevant_content}"
-        
-        if self.context:
-            self.context += f"\n\nAdditional context:\n{new_context}"
-        else:
-            self.context = new_context
-
     def draft_email(self, tone, sender_info, new_context=None, raw_context=None):
         if new_context:
             self.update_context(new_context, raw_context)
@@ -70,7 +62,7 @@ class EmailAgent:
         {email_purpose}
 
         Consider the following guidelines:
-        1. Briefly introduce yourself using relevant information from the sender's background.
+        1. Briefly introduce yourself using relevant information from the sender's background. (optional)
         2. Explain the purpose of your email, relating it to the receiver's work or company. Please note the sender will be reaching out about the current company the reciever is working at.
         3. Highlight 1-2 key points from your background that are most relevant to the receiver or their company.
         4. Express your interest in the company or the receiver's work, using specific details from the receiver context. If parallels exist in background (for example worked at the same company before), mention them but if nothing exists do not force it.
@@ -144,7 +136,7 @@ class EmailAgent:
         Warm regards,
         Alex Chen
 
-        Now, please improve the following email draft to match the style, professionalism, and effectiveness of these examples. Maintain the original intent and information, but enhance the structure, tone, and detail:
+        Now, please improve the following email draft to match the style, tone, and structure of the examples. 
 
         Original draft to improve:
         {original_draft}
@@ -171,125 +163,6 @@ class EmailAgent:
 
     def get_current_context(self):
         return self.context
-
-    def extract_from_resume(self, resume_text):
-        template = """
-        Given the following resume, extract the most relevant information for an email from a student to {person_name} at {company_name}. 
-        Focus on:
-        - Educational background relevant to the company's field
-        - Work experiences or internships that align with the company's interests
-        - Technical skills or certifications that would be valuable to the company
-        - Notable projects or achievements that demonstrate capability
-
-        Resume:
-        {resume_text}
-
-        Extracted relevant content:
-        """
-        prompt = PromptTemplate(
-            input_variables=["resume_text", "person_name", "company_name"],
-            template=template
-        )
-        chain = prompt | self.llm | StrOutputParser()
-        return chain.invoke({
-            "resume_text": resume_text, 
-            "person_name": self.contact.name, 
-            "company_name": self.contact.company
-        })
-
-    def extract_from_career_interests(self, career_interests):
-        template = """
-        Given the following career interests, extract the most relevant information for an email from a student to {person_name} at {company_name}. 
-        Focus on:
-        - Specific areas of interest that align with the company's work
-        - Long-term career goals that the company could help achieve
-        - Why the student is passionate about these areas
-        - How these interests relate to the company's mission or recent projects
-
-        Career Interests:
-        {career_interests}
-
-        Extracted relevant content:
-        """
-        prompt = PromptTemplate(
-            input_variables=["career_interests", "person_name", "company_name"],
-            template=template
-        )
-        chain = prompt | self.llm | StrOutputParser()
-        return chain.invoke({
-            "career_interests": career_interests, 
-            "person_name": self.contact.name, 
-            "company_name": self.contact.company
-        })
-
-    def extract_from_key_accomplishments(self, accomplishments):
-        template = """
-        Given the following key accomplishments, extract the most relevant information for an email from a student to {person_name} at {company_name}. 
-        Focus on:
-        - Achievements that demonstrate skills valuable to the company
-        - Projects or experiences that align with the company's work
-        - Leadership roles or initiatives that show proactivity
-        - Awards or recognitions that highlight excellence in relevant areas
-
-        Key Accomplishments:
-        {accomplishments}
-
-        Extracted relevant content:
-        """
-        prompt = PromptTemplate(
-            input_variables=["accomplishments", "person_name", "company_name"],
-            template=template
-        )
-        chain = prompt | self.llm | StrOutputParser()
-        return chain.invoke({
-            "accomplishments": accomplishments, 
-            "person_name": self.contact.name, 
-            "company_name": self.contact.company
-        })
-
-    def combine_extracted_content(self, resume_content, interests_content, accomplishments_content):
-        combined_content = f"""
-        Resume Highlights:
-        {resume_content}
-
-        Career Interests:
-        {interests_content}
-
-        Key Accomplishments:
-        {accomplishments_content}
-        """
-
-        # Summarize if the combined content is too long
-        if len(combined_content) > 20000:  # You can adjust this threshold
-            summarization_template = """
-            Summarize the following extracted content, focusing on the most important points for an email to {person_name} at {company_name}. 
-            Ensure the summary includes a balanced representation of the resume highlights, career interests, and key accomplishments:
-
-            {content}
-
-            Summarized content:
-            """
-            summarization_prompt = PromptTemplate(
-                input_variables=["content", "person_name", "company_name"],
-                template=summarization_template
-            )
-            summarization_chain = prompt | self.llm | StrOutputParser()
-            combined_content = summarization_chain.invoke({
-                "content": combined_content, 
-                "person_name": self.contact.name, 
-                "company_name": self.contact.company
-            })
-
-        return combined_content
-
-    def extract_all_relevant_content(self, resume, career_interests, key_accomplishments):
-        resume_content = self.extract_from_resume(resume)
-        interests_content = self.extract_from_career_interests(career_interests)
-        if isinstance(key_accomplishments, list):
-            key_accomplishments = "\n".join(key_accomplishments)
-        accomplishments_content = self.extract_from_key_accomplishments(key_accomplishments)
-
-        return self.combine_extracted_content(resume_content, interests_content, accomplishments_content)
 
     def critique_email(self, draft):
         template = """
@@ -344,6 +217,23 @@ class EmailAgent:
             "critique": critique
         })
 
+    def update_context(self, new_context, raw_context=None):
+        """Update the email agent's context with new information
+        
+        Args:
+            new_context (str): The new context to be added
+            raw_context (str, optional): Raw context that needs processing before adding
+        """
+        if raw_context:
+            # Process raw context first
+            processed_context = self.extract_relevant_content(raw_context)
+            self.context = processed_context
+        else:
+            # If no raw context, just update with new context
+            self.context = new_context
+        
+        print("Context updated successfully")
+        return self.context
 
 # Example usage:
 # variables = ["sender", "receiver", "context", "tone"]
@@ -352,6 +242,8 @@ class EmailAgent:
 # draft = email_agent.draft_email(sender="John Doe", receiver="Jane Smith", context="project proposal", tone="professional")
 # improved_draft = email_agent.improve_email(draft)
 # print(improved_draft)
+
+
 
 
 

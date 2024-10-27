@@ -6,7 +6,8 @@ import requests
 import json
 from web_agent import tavily_context_search
 import os
-from email_graph import run_email_workflow  # Add this import
+from email_graph import run_email_workflow
+from langchain_openai import ChatOpenAI
 
 def get_sample_contact():
     try:
@@ -23,7 +24,7 @@ def search_web(contact):
     context['person_info'] = tavily_context_search(contact.name)
     return context
 
-def get_sample_sender():
+def get_sample_sender(llm):
     # Read resume content from file
     script_dir = os.path.dirname(os.path.abspath(__file__))
     resume_path = os.path.join(script_dir, 'bill_resume.txt')
@@ -35,69 +36,80 @@ def get_sample_sender():
         print(f"Warning: Resume file not found at {resume_path}. Using placeholder content.")
         resume_content = "Sample resume content..."
 
-    return Sender(
+    # Create and initialize sender
+    sender = Sender(
+        name="Bill Newman",
         resume=resume_content,
         career_interest="Interested in how Service-as-a-Software (SaaS) companies are using AI to automate business services",
         key_accomplishments=[
             "Worked at a YC backed startup using AI to increase agricultural productivity, at McKinsey worked for startups in the blockcahin, SaaS, and quantum computing sectors",
-            "At HBS, founding a startup that is buidling AI agents to automate SME manufacturing tasks"
-        ]
+            "Currently a student at Harvard Business School (HBS) studying a master in business administration and I am interested in vertical application for AI in enteprise software "
+        ],
+        llm=llm
     )
+    
+    # Process the sender's content immediately
+    print("\nProcessing sender information...")
+    sender.process_relevant_content()
+    print("Sender information processed successfully")
+    
+    return sender
+
+def update_context(email_agent, web_context):
+    """Update the email agent's context with web search results"""
+    raw_context = web_context['company_info'] + "\n" + web_context['person_info']
+    web_relevant_content = email_agent.extract_relevant_content(raw_context)
+    print("\nRelevant Web Content Extracted:")
+    print(web_relevant_content)
+    return web_relevant_content
 
 if __name__ == "__main__":
     try:
-        # Step 1: Get sample contact
+        # Step 1: Initialize LLM
+        print("Initializing LLM...")
+        openai_api_key = get_secret("OpenAPI_KEY")
+        llm = ChatOpenAI(temperature=0.7, model="gpt-4", openai_api_key=openai_api_key)
+        print("LLM initialized successfully")
+
+        # Step 2: Get and create contact
+        print("\nFetching sample contact...")
         sample_contact_data = get_sample_contact()
         if not sample_contact_data:
             raise ValueError("Failed to get sample contact")
         print("Sample Contact:")
         print(json.dumps(sample_contact_data, indent=2))
 
-        # Create Contact object
         contact = Contact(sample_contact_data)
-        print("\nContact object created successfully")
+        print("Contact object created successfully")
 
-        # Create EmailAgent
-        email_agent = EmailAgent(contact)
-        print("\nEmailAgent created successfully")
+        # Step 3: Create and process sender
+        sender = get_sample_sender(llm)
 
-        # Step 2: Search the web
+        # Step 4: Create EmailAgent
+        print("\nCreating EmailAgent...")
+        email_agent = EmailAgent(contact, sender)
+        print("EmailAgent created successfully")
+
+        # Step 5: Search web and process context
+        print("\nSearching web for context...")
         web_context = search_web(contact)
-        print("\nWeb Search Results:")
+        print("Web Search Results:")
         print(json.dumps(web_context, indent=2))
 
-        # Step 3: Extract relevant content from web search and update context
-        raw_context = web_context['company_info'] + "\n" + web_context['person_info']
-        web_relevant_content = email_agent.extract_relevant_content(raw_context)
-        print("\nRelevant Web Content Extracted:")
-        print(web_relevant_content)
+        # Step 6: Update context with web search results
+        web_relevant_content = update_context(email_agent, web_context)
 
-        email_agent.update_context("Web search results", web_relevant_content)
-        print("\nContext updated with web search results")
-
-        # Step 4: Get sender information and extract relevant content
-        sender = get_sample_sender()
-        sender_relevant_content = email_agent.extract_all_relevant_content(
-            resume=sender.resume,
-            career_interests=sender.career_interest,
-            key_accomplishments="\n".join(sender.key_accomplishments)
-        )
-        print("\nRelevant Sender Content Extracted:")
-        print(sender_relevant_content)
-
-        email_agent.update_context("Sender information", sender_relevant_content)
-        print("\nContext updated with sender information")
-
-        # Step 5: Use the graph-based workflow for email drafting and improvement
+        # Step 7: Run email workflow
         print("\nStarting email workflow with LangGraph...")
         try:
             final_state = run_email_workflow(
                 email_agent=email_agent,
-                sender_info=sender_relevant_content,
-                context=f"reaching out as a student to discuss {contact.name}'s work at {contact.company}"
+                sender_info=sender.get_relevant_content(),
+
+                context=web_relevant_content
             )
 
-            # Print the results of each revision
+            # Print results
             print("\nFinal Email Draft:")
             print(final_state["draft"])
             print("\nFinal Critique:")
