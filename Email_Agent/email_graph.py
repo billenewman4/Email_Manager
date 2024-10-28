@@ -75,7 +75,7 @@ def create_email_graph(email_agent):
     # After critique, go to either revise_with_critique or end
     workflow.add_conditional_edges(
         'critique_email',
-        lambda x: 'revise_with_critique' if x['revision_count'] < 2 else 'end',
+        lambda x: 'revise_with_critique' if x['revision_count'] < 3 else 'end',
         {
             'revise_with_critique': 'revise_with_critique',  # Fixed: Direct path to revise_with_critique
             'end': 'end'
