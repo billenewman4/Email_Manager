@@ -74,6 +74,9 @@ class EmailAgent:
         - The sender is reaching out about the current company the receiver is working at.
         - You do not have to use every single detail from the receiver context, only use what is most relevant.
         - The sender is not trying to sell themselves, they are reaching out to learn more about the receiver's work and the company.
+        - This email should not sound like it was written by chatGPT!!!
+        - Do NOT brag in any way about the sender's background, achievements, or anything else.
+        - Do NOT use the sender's name in the email.
 
         Draft:"""
 
@@ -171,6 +174,7 @@ class EmailAgent:
         2. Does this email sound unique to the sender/reciever or is it generic (e.g., something almost any student could send)
         3. Is every word or detail in the email in some way relevant to the reciever? 
         4. Is the email pithy enough? These are busy professionals that don't have a ton of time to read long emails
+        5. Does this email sound like it was written by a normal human or chatGPT?
 
         Please be extremely critical with your feedback for best results
 
@@ -195,7 +199,7 @@ class EmailAgent:
     def revise_with_critique(self, draft, critique):
         template = """
         Revise the following email draft based on the provided critique. 
-        Maintain the core message while addressing the specific feedback points.
+        Maintain the core message while addressing all the specific feedback points.
 
         Original Draft:
         {draft}
