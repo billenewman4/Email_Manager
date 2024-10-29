@@ -12,7 +12,7 @@ if not tavily_api_key:
 # Initialize Tavily client
 tavily_client = TavilyClient(api_key=tavily_api_key)
 
-def tavily_search(query, search_depth="basic", max_results=1):
+async def tavily_search(query, search_depth="basic", max_results=1):
     """
     Perform a search using Tavily API.
     
