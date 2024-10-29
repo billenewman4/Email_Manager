@@ -1,80 +1,100 @@
 from langchain_openai import ChatOpenAI
-from langchain.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from langchain.prompts import ChatPromptTemplate
+from langchain.chains import LLMChain
+import os
 from secrets import get_secret
+from dotenv import load_dotenv
 
 class EmailAgent:
     def __init__(self):
-        self.api_key = self._get_api_key()
-        self.llm = ChatOpenAI(api_key=self.api_key)
-        self.experience_extractor = self._create_experience_extractor()
-        self.email_generator = self._create_email_generator()
-
-    def _get_api_key(self):
-        api_key = get_secret('OpenAPI_KEY')
-        if not api_key:
-            raise ValueError("Failed to retrieve OpenAI API key from Secret Manager")
-        return api_key
-
-    def _create_experience_extractor(self):
-        prompt_template = PromptTemplate(
-            input_variables=["raw_context", "person_name", "company_name"],
-            template="""
-            Given the following context about {person_name} at {company_name}, list 5-10 bullet points 
-            of their experiences or achievements related to manufacturing:
-
-            Context:
-            {raw_context}
-
-            Output the bullet points in the following format:
-            - Experience 1
-            - Experience 2
-            - ...
-            """
+        # Load environment variables
+        load_dotenv()
+        
+        # Get OpenAI API key and verify it exists
+        openai_api_key = os.getenv('OpenAPI_KEY') or get_secret('OpenAPI_KEY')
+        if not openai_api_key:
+            raise ValueError("OpenAI API key not found. Please set OPENAI_API_KEY environment variable.")
+        
+        
+        self.llm = ChatOpenAI(
+            api_key=openai_api_key,
+            model_name="gpt-4-turbo-preview",
+            temperature=0.7
         )
-        return prompt_template | self.llm | StrOutputParser()
+        
+        # Initialize experience chain
+        experience_prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are an AI assistant that extracts key experiences and achievements."),
+            ("user", "Given the following information about {name} from {company}, extract key experiences and achievements: \n\n{context}")
+        ])
+        
+        self.experience_chain = LLMChain(
+            llm=self.llm,
+            prompt=experience_prompt
+        )
+        
+        # Initialize email chain
+        email_prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are an AI assistant that writes concise emails. Make sure your writing does not sound like chatGPT."),
+            ("user", """
+             Please stick to the following format only! Do not deviate from it:
 
-    def _create_email_generator(self):
-        prompt_template = PromptTemplate(
-            input_variables=["experiences", "person_name", "company_name"],
-            template="""
-            Given the following experiences of {person_name} at {company_name}, draft an email using this outline:
 
-            Hello {person_name},
+             Hello [Insert First Name]!
 
-            I am a current student at Harvard doing research into the manufacturing space. [Insert a sentence here that naturally incorporates the most relevant experience or achievement from the list, in a way that shows why you're reaching out to them specifically.] We thought you would have good insights for us.
+            I am a current student at Harvard studying the manufacturing industry, specifically, how manufacturing companies can better optimize communication and coordination with their customers. 
 
-            Would you be willing to talk with us for 15 minutes?
+            I was curious if you or someone you know at [Insert Current Company Name] would be willing to talk with me for 15 minutes? I think your [Pithy explanation of why company's work would give unique insights into our research]. 
 
-            Best regards,
             Bill
+             
+             Please use the following information to help with the pithy explanation. At max only refrence 2 experiences: \n\n{experiences}
+             Please ensure the last sentence of every email contains "would give unique insights into our research. ".
+             One example of how this communication is done well is:
 
-            Experiences:
-            {experiences}
+             Hello!
 
-            Please draft the complete email, ensuring that the inserted sentence flows naturally within the context of the email:
-            """
+            I am a current student at Harvard studying the manufacturing industry, specifically, how manufacturing companies can better optimize communication and coordination with their customers. 
+
+            I was curious if someone at Kontrast 4d would be willing to talk with me for 15 minutes? I think your high-mix low volume approach would give unique insights into our research. . 
+
+            Bill
+             
+             
+             """)
+        ])
+        
+        self.email_chain = LLMChain(
+            llm=self.llm,
+            prompt=email_prompt
         )
-        return prompt_template | self.llm | StrOutputParser()
 
-    def process_contact(self, person_name, company_name, raw_context):
-        experiences = self.extract_experiences(raw_context, person_name, company_name)
-        email = self.generate_email(experiences, person_name, company_name)
-        return experiences, email
+    async def process_contact(self, name: str, company: str, context: str):
+        """
+        Process a contact asynchronously
+        """
+        try:
+            # Run the experience chain
+            experience_response = await self.experience_chain.ainvoke({
+                "name": name,
+                "company": company,
+                "context": context
+            })
+            experiences = experience_response.get('text', '')
 
-    def extract_experiences(self, raw_context, person_name, company_name):
-        return self.experience_extractor.invoke({
-            "raw_context": raw_context,
-            "person_name": person_name,
-            "company_name": company_name
-        })
+            # Run the email chain
+            email_response = await self.email_chain.ainvoke({
+                "name": name,
+                "company": company,
+                "experiences": experiences
+            })
+            email_body = email_response.get('text', '')
 
-    def generate_email(self, experiences, person_name, company_name):
-        return self.email_generator.invoke({
-            "experiences": experiences,
-            "person_name": person_name,
-            "company_name": company_name
-        })
+            return experiences, email_body
+            
+        except Exception as e:
+            print(f"Error in process_contact: {str(e)}")
+            return "", ""
 
 # Example usage:
 # agent = EmailAgent()
