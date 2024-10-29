@@ -35,7 +35,7 @@ async function callPythonScraper(query) {
 function generateSampleContact() {
     return {
         id: 'sample-id-123',
-        name: 'Aaref Hilaly',
+        name: 'Monica Varman',
         createdTime: new Date().toISOString(),
         lastEditedTime: new Date().toISOString(),
         url: 'https://www.notion.so/Aaref-Hilaly-sample-id-123',
@@ -47,7 +47,7 @@ function generateSampleContact() {
         role: 'Venture Partner',
         contactType: 'Email',
         meetingNotes: null,
-        company: 'Bain Capital Ventures',
+        company: 'G2 Venture Partners',
         companyInfo: null
     };
 }
