@@ -15,7 +15,7 @@ from functools import partial
 
 # adding new comment
 
-def read_contacts_from_csv(file_path, limit=5):
+def read_contacts_from_csv(file_path, limit=100):
    """
    Read contacts from a CSV file, up to a specified limit.
    
@@ -30,14 +30,15 @@ def read_contacts_from_csv(file_path, limit=5):
            for i, row in enumerate(reader):
                if i >= limit:
                    break
-               contact = {
+               if row.get('Work Email') and row.get('Work Email').strip():
+                   contact = {
                    'name': row.get('Full Name', ''),
                    'email': row.get('Work Email', ''),
                    'company_domain': row.get('Company Domain', ''),
                    'job_title': row.get('Job Title', ''),
                    'linkedin_profile': row.get('LinkedIn Profile', ''),
                    'company': row.get('Company Name', '')
-               }
+                }
                contacts.append(contact)
    except Exception as e:
        print(f"An error occurred while reading the CSV file: {e}")
@@ -178,6 +179,7 @@ async def process_single_contact(contact: dict, email_agent: EmailAgent) -> Emai
         print(f"\nProcessing complete for: {contact['name']}")
         print(f"Experiences extracted for: {contact['name']}")
         print(f"Email drafted for: {contact['name']}")
+        print (f"Email: {email_body}")
 
         return EmailData(
             name=contact['name'],
@@ -236,7 +238,7 @@ async def process_all_contacts(contacts: List[dict]):
     """
     email_agent = EmailAgent()
     results = []
-    batch_size = 10  # Adjust this number based on API limits
+    batch_size = 1  # Adjust this number based on API limits
     
     # Process contacts in batches
     for i in range(0, len(contacts), batch_size):
