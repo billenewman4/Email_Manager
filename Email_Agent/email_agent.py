@@ -45,7 +45,7 @@ class EmailAgent:
 
             I am a current student researching the logistics/distribution industry, and have already spoken with 20+ companies about the challenges of streamling communication between customers and suppliers.
 
-            Would you or someone you know at [Insert Current Company Name] be willing to jump on the phone for 15 minutes? I think [Pithy explanation of why company's work would give unique insights into our research]. 
+            Would you or someone you know at [Insert Current Company Name] be willing to jump on the phone for 15 minutes to enhance our research? I think [Pithy explanation of why company's work would give unique insights into our research]. 
              
             Furthermore, I am happy to share our findings so far from our research so far, and later follow up with our findings at the conclusion of the research.
              
