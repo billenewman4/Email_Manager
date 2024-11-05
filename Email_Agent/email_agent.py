@@ -18,7 +18,7 @@ class EmailAgent:
         
         self.llm = ChatOpenAI(
             api_key=openai_api_key,
-            model_name="gpt-4-turbo-preview",
+            model_name="gpt-4o-mini",
             temperature=0.7
         )
         
@@ -40,12 +40,18 @@ class EmailAgent:
              Please stick to the following format only! Do not deviate from it:
 
 
-             Hello [Insert First Name]!
+            Hello [Insert First Name],
+             
 
-            I am a current student at Harvard studying the manufacturing industry, specifically, how manufacturing companies can better optimize communication and coordination with their customers. 
+            I am a current student researching the logistics/distribution industry, and have already spoken with 20+ companies about the challenges of streamling communication between customers and suppliers.
 
-            I was curious if you or someone you know at [Insert Current Company Name] would be willing to talk with me for 15 minutes? I think your [Pithy explanation of why company's work would give unique insights into our research]. 
+            Would you or someone you know at [Insert Current Company Name] be willing to jump on the phone for 15 minutes to enhance our research? I think [Pithy explanation of why company's work would give unique insights into our research]. 
+             
+            Furthermore, I am happy to share our findings so far from our research so far, and later follow up with our findings at the conclusion of the research.
+             
+            Hoping to hear from you soon!
 
+            Best,
             Bill
              
              Please use the following information to help with the pithy explanation. At max only refrence 2 experiences: \n\n{experiences}
