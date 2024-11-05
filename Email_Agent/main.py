@@ -238,7 +238,7 @@ async def process_all_contacts(contacts: List[dict]):
     """
     email_agent = EmailAgent()
     results = []
-    batch_size = 1  # Adjust this number based on API limits
+    batch_size = 10  # Adjust this number based on API limits
     
     # Process contacts in batches
     for i in range(0, len(contacts), batch_size):
