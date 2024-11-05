@@ -73,3 +73,54 @@ def tavily_extract_content(query, max_results=2):
     except Exception as e:
         print(f"An error occurred during Tavily content extraction: {str(e)}")
         return None
+    
+if __name__ == "__main__":
+    # Test the context search function
+    context = tavily_context_search(
+        query="""
+        Comprehensive information about prccopack.com:
+        - Company description and history
+        - Products and services
+        - Industry and specialties
+        - Location and contact details
+        - Business operations
+        - Certifications and compliance
+        """,
+        max_tokens=8000,  # Increased token limit
+        search_depth="advanced",  # More thorough search
+        include_domains=["prccopack.com"],  # Focus on their website
+        max_results=10  # Get more results
+    )
+    
+    if context is None:
+        print("No results found from Tavily search")
+    else:
+        try:
+            # First, parse the outer JSON string
+            outer_json = json.loads(context)
+            # Parse the array of strings
+            results = json.loads(outer_json)
+            
+            print("\nCompany Information:")
+            for result_str in results:
+                # Parse each individual result
+                result = json.loads(result_str)
+                print(f"\nSource: {result['url']}")
+                print(f"Content: {result['content']}")
+                
+        except json.JSONDecodeError as e:
+            # If that doesn't work, try alternative parsing
+            try:
+                # Remove the outer quotes and parse
+                cleaned = context.strip('"')
+                results = json.loads(cleaned)
+                
+                print("\nCompany Information:")
+                for result_str in results:
+                    result = json.loads(result_str)
+                    print(f"\nSource: {result['url']}")
+                    print(f"Content: {result['content']}")
+                    
+            except json.JSONDecodeError as e2:
+                print("Error parsing results:", e2)
+                print("Raw context:", context)
