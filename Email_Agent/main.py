@@ -15,6 +15,69 @@ from functools import partial
 
 # adding new comment
 
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
+from contacts import Contact
+
+def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int = 100) -> List[Contact]:
+    """
+    Read contacts from Google Sheets and return as Contact objects.
+    
+    :param spreadsheet_id: The ID of the Google Sheet
+    :param range_name: The range to read (e.g., 'Sheet1!A2:G100')
+    :param limit: Maximum number of contacts to read
+    :return: List of Contact objects
+    """
+    try:
+        # Setup Google Sheets credentials
+        SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+        SERVICE_ACCOUNT_FILE = 'path/to/your/service-account-key.json'
+        
+        credentials = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        
+        # Build the Google Sheets service
+        service = build('sheets', 'v4', credentials=credentials)
+        sheet = service.spreadsheets()
+        
+        # Request data from Google Sheets
+        result = sheet.values().get(
+            spreadsheetId=spreadsheet_id,
+            range=range_name
+        ).execute()
+        
+        values = result.get('values', [])
+        if not values:
+            print('No data found in sheet.')
+            return []
+            
+        # Get headers from first row
+        headers = values[0]
+        
+        # Convert rows to Contact objects
+        contacts = []
+        for row in values[1:limit+1]:  # Skip header row and respect limit
+            # Pad row with empty strings if it's shorter than headers
+            row_data = row + [''] * (len(headers) - len(row))
+            
+            # Create dictionary with header keys and row values
+            contact_data = dict(zip(headers, row_data))
+            
+            # Create Contact object
+            contact = Contact(contact_data)
+            
+            # Only add valid contacts
+            if contact.is_valid_contact():
+                contacts.append(contact)
+        
+        print(f"Successfully read {len(contacts)} contacts from Google Sheets")
+        return contacts
+        
+    except Exception as e:
+        print(f"Error reading from Google Sheets: {str(e)}")
+        return []
+
 def read_contacts_from_csv(file_path, limit=100):
    """
    Read contacts from a CSV file, up to a specified limit.
