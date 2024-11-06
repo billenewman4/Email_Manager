@@ -1,1 +1,0 @@
-//This should take in emails from networking4@gmail.com and updload them for either follow-ups or examples for chat GPT
