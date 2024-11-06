@@ -11,6 +11,11 @@ class Contact:
         self.company_domain = data.get('Company Domain')
         self.linkedin_profile = data.get('Linkedin Profile')
         self.work_email = data.get('Work Email')
+        self.company_context = None
+        self.company_raw_context = None
+        self.person_context = None
+        self.person_raw_context = None
+        self.draft_email = None
 
     def print_properties(self):
         for key, value in self.__dict__.items():
