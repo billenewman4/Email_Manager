@@ -10,15 +10,16 @@ import asyncio
 from typing import List
 import aiohttp
 from dataclasses import dataclass
-from tavily import TavilyClient
+from web_agent import tavily_search
 from functools import partial
-
-# adding new comment
-
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from contacts import Contact
+
+#GLobal variables
+SPREADSHEET_ID = '1xyGHQBRn5dfFG3utdAifs2ubMJtolVK9Qoy9YJGoheg'
+RANGE_NAME = 'Sheet1!A1:L'
 
 def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int = 100) -> List[Contact]:
     """
@@ -32,7 +33,7 @@ def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int =
     try:
         # Setup Google Sheets credentials
         SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-        SERVICE_ACCOUNT_FILE = 'path/to/your/service-account-key.json'
+        SERVICE_ACCOUNT_FILE = 'customeroutreach-440901-18943c7c0e95.json'
         
         credentials = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES)
@@ -58,7 +59,19 @@ def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int =
         # Convert rows to Contact objects
         contacts = []
         for row in values[1:limit+1]:  # Skip header row and respect limit
-            # Pad row with empty strings if it's shorter than headers
+            # Check if row needs padding
+            if len(row)-4 < len(headers):
+                print("\n")
+                print("!" * 80)
+                print("WARNING: ROW DATA MISMATCH DETECTED!")
+                print(f"Row has {len(row)} columns but should have {len(headers)} columns")
+                print(f"Headers: {headers}")
+                print(f"Current row data: {row}")
+                print("Adding padding to match header length")
+                print("!" * 80)
+                print("\n")
+            
+            # Pad the row with empty strings if needed
             row_data = row + [''] * (len(headers) - len(row))
             
             # Create dictionary with header keys and row values
@@ -77,6 +90,8 @@ def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int =
     except Exception as e:
         print(f"Error reading from Google Sheets: {str(e)}")
         return []
+
+
 
 def read_contacts_from_csv(file_path, limit=100):
    """
@@ -107,29 +122,6 @@ def read_contacts_from_csv(file_path, limit=100):
        print(f"An error occurred while reading the CSV file: {e}")
    return contacts
 
-async def tavily_context_search(query: str) -> str:
-    """
-    Perform an async web search using Tavily API.
-    """
-    api_key = get_secret('TAVILY_API_KEY')
-    client = TavilyClient(api_key=api_key)
-    
-    # Run the synchronous Tavily search in a thread pool
-    loop = asyncio.get_running_loop()
-    try:
-        response = await loop.run_in_executor(
-            None,
-            partial(client.search, query=query, search_depth="advanced", max_results=5)
-        )
-        
-        if response and 'results' in response:
-            contents = [result.get('content', '') for result in response['results']]
-            return ' '.join(contents)
-        return ''
-    except Exception as e:
-        print(f"Error in Tavily search: {str(e)}")
-        return ''
-
 async def search_web(contact: dict) -> dict:
     """
     Perform web searches for company and person information concurrently.
@@ -137,22 +129,37 @@ async def search_web(contact: dict) -> dict:
     try:
         # Create tasks for both searches
         if contact['company_domain']:
-            company_query = f"site:{contact['company_domain']} {contact['company']}"
+            company_query = f"Tell me about {contact['company']} with website site:{contact['company_domain']} so I can get more context for a cold email"
         else:
             company_query = contact['company']
         
-        person_query = f"{contact['name']} {contact['job_title']} {contact['company']}"
+        person_query = f" Tell me about {contact['name']} who works at {contact['company']} as {contact['job_title']}"
+        
+        print("\n" + "="*50)
+        print("Starting web searches:")
+        print(f"Company query: {company_query}")
+        print(f"Person query: {person_query}")
+        print("="*50 + "\n")
         
         # Run both searches concurrently
-        company_task = asyncio.create_task(tavily_context_search(company_query))
-        person_task = asyncio.create_task(tavily_context_search(person_query))
+        company_task = asyncio.create_task(tavily_search(company_query))
+        person_task = asyncio.create_task(tavily_search(person_query))
         
         # Wait for both searches to complete
         company_info, person_info = await asyncio.gather(company_task, person_task)
         
+        # Debug print the results
+        print("\n" + "="*50)
+        print("Search Results:")
+        print(f"Company info found: {'Yes' if company_info else 'No'}")
+        print(f"Company info length: {len(company_info) if company_info else 0}")
+        print(f"Person info found: {'Yes' if person_info else 'No'}")
+        print(f"Person info length: {len(person_info) if person_info else 0}")
+        print("="*50 + "\n")
+        
         return {
-            'company_info': company_info,
-            'person_info': person_info
+            'company_info': company_info or '',  # Ensure we return empty string if None
+            'person_info': person_info or ''     # Ensure we return empty string if None
         }
     except Exception as e:
         print(f"Error in web search: {str(e)}")
@@ -207,54 +214,65 @@ class EmailData:
     body: str
     timestamp: str
 
-async def process_single_contact(contact: dict, email_agent: EmailAgent) -> EmailData | None:
+async def process_single_contact(contact: Contact, email_agent: EmailAgent) -> Contact:
     """
-    Process a single contact asynchronously, completing all steps for one contact
-    before moving to the next
+    Process a single contact asynchronously
     """
     try:
-        print(f"\nStarting to process contact: {contact['name']}")
+        if contact.draft_email:
+            print(f"\nSkipping {contact.full_name} because they already have a draft email")
+            return contact
+        print(f"\nStarting to process contact: {contact.full_name}")
         
         # Search the web
-        print(f"Searching web for: {contact['name']}")
-        web_context = await search_web(contact)
-        print(f"Web search complete for: {contact['name']}")
-
-        # Immediately process this contact's context
+        web_context = await search_web({
+            'name': contact.full_name,
+            'company_domain': contact.company_domain,
+            'job_title': contact.job_title,
+            'linkedin_profile': contact.linkedin_profile,
+            'company': contact.company_domain.split('.')[0] if contact.company_domain else ''
+        })
+        
+        # Store the raw context from web searches
+        contact.company_context = web_context.get('company_info', '')
+        contact.person_context = web_context.get('person_info', '')
+        
+        # Create combined raw context for email generation
         raw_context = (
-            f"Name: {contact['name']}\n"
-            f"Company: {contact['company']}\n"
-            f"Job Title: {contact['job_title']}\n"
-            f"LinkedIn: {contact['linkedin_profile']}\n"
-            f"Company Domain: {contact['company_domain']}\n"
-            f"Company Info: {web_context.get('company_info', '')}\n"
-            f"Person Info: {web_context.get('person_info', '')}"
+            f"Name: {contact.full_name}\n"
+            f"Company Domain: {contact.company_domain}\n"
+            f"Job Title: {contact.job_title}\n"
+            f"LinkedIn: {contact.linkedin_profile}\n"
+            f"Location: {contact.location}\n"
+            f"Company Info: {contact.company_context}\n"
+            f"Person Info: {contact.person_context}"
         )
         
-        print(f"Extracting experiences for: {contact['name']}")
+        # Store the raw context
+        contact.company_raw_context = raw_context
+        
+        # Process with email agent
         experiences, email_body = await email_agent.process_contact(
-            contact['name'],
-            contact['company'],
+            contact.full_name,
+            contact.company_domain,
             raw_context
         )
-        print("email_body", email_body)
-
-        print(f"\nProcessing complete for: {contact['name']}")
-        print(f"Experiences extracted for: {contact['name']}")
-        print(f"Email drafted for: {contact['name']}")
-        print (f"Email: {email_body}")
-
-        return EmailData(
-            name=contact['name'],
-            email=contact['email'],
-            subject=f"Following up - {contact['company']}",
-            body=email_body,
-            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        )
+        
+        # Store the draft email
+        contact.draft_email = email_body
+        
+        # Debug printing
+        print("\nProcessed Contact Information:")
+        print(f"Name: {contact.full_name}")
+        print(f"Company Context Length: {len(contact.company_context)}")
+        print(f"Person Context Length: {len(contact.person_context)}")
+        print(f"Draft Email Length: {len(contact.draft_email) if contact.draft_email else 0}")
+        
+        return contact
         
     except Exception as e:
-        print(f"Error processing contact {contact['name']}: {str(e)}")
-        return None
+        print(f"Error processing contact {contact.full_name}: {str(e)}")
+        return contact
 
 def save_emails_to_csv(email_data_list: List[EmailData]):
     """
@@ -295,7 +313,7 @@ def save_emails_to_csv(email_data_list: List[EmailData]):
     except Exception as e:
         print(f"Error saving to CSV: {str(e)}")
 
-async def process_all_contacts(contacts: List[dict]):
+async def process_all_contacts(contacts: List[Contact]):
     """
     Process contacts concurrently in smaller batches to manage API rate limits
     """
@@ -312,7 +330,7 @@ async def process_all_contacts(contacts: List[dict]):
         tasks = [
             asyncio.create_task(
                 process_single_contact(contact, email_agent),
-                name=f"Contact_{contact['name']}"  # Name the task for better tracking
+                name=f"Contact_{contact.full_name}"  # Changed from contact['name'] to contact.full_name
             )
             for contact in batch
         ]
@@ -322,35 +340,219 @@ async def process_all_contacts(contacts: List[dict]):
         results.extend(batch_results)
         
         # Print batch completion status
-        successful = sum(1 for r in batch_results if isinstance(r, EmailData))
+        successful = sum(1 for r in batch_results if isinstance(r, Contact))
         print(f"Batch complete. Successful: {successful}/{len(batch)}")
     
     # Filter out None values and exceptions
-    valid_results = [r for r in results if isinstance(r, EmailData)]
+    valid_results = [r for r in results if isinstance(r, Contact)]
     failed = len(results) - len(valid_results)
     
-    # Save all successful results to CSV at once
-    if valid_results:
-        save_emails_to_csv(valid_results)
-    
     print(f"\nAll processing complete. Successful: {len(valid_results)}, Failed: {failed}")
+    return valid_results
 
-if __name__ == "__main__":
+def update_sheet_with_contact_info(spreadsheet_id: str, range_name: str, contacts: List[Contact]) -> None:
+    """
+    Update specific rows in Google Sheet with processed contact information.
+    Only updates rows where we find a matching contact and only updates changed fields.
+    """
     try:
-        # Set up the file path to the CSV
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        csv_file_path = os.path.join(current_dir, 'data', 'contacts.csv')
+        SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+        SERVICE_ACCOUNT_FILE = 'customeroutreach-440901-18943c7c0e95.json'
         
-        print(f"Attempting to read CSV from: {csv_file_path}")
+        credentials = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES)
         
-        # Read all contacts from CSV
-        contacts = read_contacts_from_csv(csv_file_path)
+        service = build('sheets', 'v4', credentials=credentials)
+        sheet = service.spreadsheets()
         
-        if not contacts:
-            raise ValueError("No contacts found in the CSV file")
+        # Get current sheet data once
+        result = sheet.values().get(
+            spreadsheetId=spreadsheet_id,
+            range=range_name  # Extended range to include all fields
+        ).execute()
+        
+        values = result.get('values', [])
+        
+        # Create email to row index mapping to avoid repeated searches
+        email_to_row = {}
+        if len(values) > 1:  # If we have data rows
+            for idx, row in enumerate(values[1:], start=2):  # Skip header
+                if len(row) > 6:  # If row has email column
+                    email_to_row[row[6]] = idx
+        
+        # If sheet is empty or no headers, initialize headers
+        if not values:
+            headers = [
+                'Match', 'Full Name', 'Job Title', 'Location', 
+                'Company Domain', 'LinkedIn Profile', 'Work Email',
+                'Company Context', 'Company Raw Context', 
+                'Person Context', 'Person Raw Context', 'Draft Email'
+            ]
+            sheet.values().update(
+                spreadsheetId=spreadsheet_id,
+                range='Sheet1!A1:L1',
+                valueInputOption='RAW',
+                body={'values': [headers]}
+            ).execute()
+            next_row = 2
+        else:
+            next_row = len(values) + 1
+        
+        # Prepare updates
+        updates = []
+        for contact in contacts:
+            # Convert contact to row data
+            new_row = [
+                contact.match,
+                contact.full_name,
+                contact.job_title,
+                contact.location,
+                contact.company_domain,
+                contact.linkedin_profile,
+                contact.work_email,
+                contact.company_context,
+                contact.company_raw_context,
+                contact.person_context,
+                contact.person_raw_context,
+                contact.draft_email
+            ]
+            
+            # Check if contact exists using our mapping
+            if contact.work_email in email_to_row:
+                row_idx = email_to_row[contact.work_email]
+                print(f"Updating existing contact at row {row_idx}: {contact.full_name}")
+                updates.append({
+                    'range': f'Sheet1!A{row_idx}:L{row_idx}',
+                    'values': [new_row]
+                })
+            else:
+                print(f"Adding new contact at row {next_row}: {contact.full_name}")
+                updates.append({
+                    'range': f'Sheet1!A{next_row}:L{next_row}',
+                    'values': [new_row]
+                })
+                next_row += 1
+        
+        # Execute updates
+        if updates:
+            body = {
+                'valueInputOption': 'RAW',
+                'data': updates
+            }
+            
+            result = service.spreadsheets().values().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body=body
+            ).execute()
+            
+            print(f"Updated/Added {len(updates)} rows in the sheet")
+            return result
+        else:
+            print("No updates needed")
+            return None
+            
+    except Exception as e:
+        print(f"Error updating Google Sheet: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        return None
 
-        # Run the async processing
-        asyncio.run(process_all_contacts(contacts))
-
+async def main():
+    try:
+        SPREADSHEET_ID = '1xyGHQBRn5dfFG3utdAifs2ubMJtolVK9Qoy9YJGoheg'
+        
+        # Read contacts
+        contacts = read_contacts_from_sheets(SPREADSHEET_ID, RANGE_NAME)
+        
+        print("\nContacts loaded:")
+        for i, contact in enumerate(contacts, 1):
+            print(f"\nContact {i}:")
+            print(f"Name: {contact.full_name}")
+            print(f"Email: {contact.work_email}")
+            print(f"Company: {contact.company_domain}")
+            print(f"Job Title: {contact.job_title}")
+            print(f"LinkedIn: {contact.linkedin_profile}")
+        
+        if contacts:
+            print("\nProcessing contacts...")
+            # Wait for all contacts to be processed
+            processed_contacts = await process_all_contacts(contacts)
+            
+            print("\nAll contacts processed, updating sheet...")
+            if processed_contacts:
+                update_sheet_with_contact_info(SPREADSHEET_ID,RANGE_NAME, processed_contacts)
+                
+                print("\nProcess complete! Updated contacts:")
+                for contact in processed_contacts:
+                    print(f"\nContact: {contact.full_name}")
+                    print(f"Company Context Length: {len(contact.company_context) if contact.company_context else 0}")
+                    print(f"Person Context Length: {len(contact.person_context) if contact.person_context else 0}")
+                    print(f"Draft Email Length: {len(contact.draft_email) if contact.draft_email else 0}")
+            else:
+                print("No contacts were successfully processed")
+    
     except Exception as e:
         print(f"An error occurred: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+
+if __name__ == "__main__":
+    # Normal execution
+    #asyncio.run(main())
+    
+    # Test section for update_sheet_with_contact_info
+    print("\n" + "="*50)
+    print("TESTING SHEET UPDATE FUNCTIONALITY")
+    print("="*50)
+    
+    try:
+        # Create dummy contact data
+        test_contacts = []
+        
+        # Test Contact 1
+        contact_data_1 = {
+            'Match': 'Y',
+            'Full Name': 'Test Person 1',
+            'Job Title': 'Test Engineer',
+            'Location': 'Test City, State',
+            'Company Domain': 'testcompany.com',
+            'Linkedin Profile': 'Y',
+            'Work Email': 'test1@testcompany.com',
+            'Company Context': 'This is test company context 1',
+            'Company Raw Context': 'This is raw company context 1',
+            'Person Context': 'This is person context 1',
+            'Person Raw Context': 'This is raw person context 1',
+            'Draft Email': 'This is a test draft email 1'
+        }
+        
+        # Test Contact 2
+        contact_data_2 = {
+            'Match': 'Y',
+            'Full Name': 'Test Person 2',
+            'Job Title': 'Test Manager',
+            'Location': 'Test City, State',
+            'Company Domain': 'testcompany.com',
+            'Linkedin Profile': 'Y',
+            'Work Email': 'test2@testcompany.com',
+            'Company Context': 'This is test company context 2',
+            'Company Raw Context': 'This is raw company context 2',
+            'Person Context': 'This is person context 2',
+            'Person Raw Context': 'This is raw person context 2',
+            'Draft Email': 'This is a test draft email 2'
+        }
+        
+        # Add more test contacts as needed
+        test_contacts.append(Contact(contact_data_1))
+        test_contacts.append(Contact(contact_data_2))
+        
+        # Update sheet with test contacts
+        update_sheet_with_contact_info(SPREADSHEET_ID, RANGE_NAME,test_contacts)
+        
+        print("Test section complete. Sheet updated successfully.")
+    except Exception as e:
+        print(f"An error occurred during testing: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+
+
+
