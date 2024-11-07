@@ -9,13 +9,11 @@ class Contact:
         self.job_title = data.get('Job Title')
         self.location = data.get('Location')
         self.company_domain = data.get('Company Domain')
+        self.company_name = data.get('Company Name')
         self.linkedin_profile = data.get('Linkedin Profile')
         self.work_email = data.get('Work Email')
-        self.company_context = None
-        self.company_raw_context = None
-        self.person_context = None
-        self.person_raw_context = None
-        self.draft_email = None
+        self.context = data.get('Context')
+        self.draft_email = data.get('Draft Email')
 
     def print_properties(self):
         for key, value in self.__dict__.items():
@@ -39,6 +37,9 @@ class Contact:
             'Job Title': self.job_title,
             'Location': self.location,
             'Company Domain': self.company_domain,
+            'Company Name': self.company_name,
             'Linkedin Profile': self.linkedin_profile,
-            'Work Email': self.work_email
+            'Work Email': self.work_email,
+            'Context': self.context,
+            'Draft Email': self.draft_email
         }

@@ -19,7 +19,7 @@ from contacts import Contact
 
 #GLobal variables
 SPREADSHEET_ID = '1xyGHQBRn5dfFG3utdAifs2ubMJtolVK9Qoy9YJGoheg'
-RANGE_NAME = 'Sheet1!A1:L'
+RANGE_NAME = 'Sheet1!A1:I'
 
 def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int = 100) -> List[Contact]:
     """
@@ -232,49 +232,29 @@ async def process_single_contact(contact: Contact, email_agent: EmailAgent) -> C
             'linkedin_profile': contact.linkedin_profile,
             'company': contact.company_domain.split('.')[0] if contact.company_domain else ''
         })
-        
-        # Store the raw context from web searches
-        contact.company_context = web_context.get('company_info', '')
-        contact.person_context = web_context.get('person_info', '')
-        
-        # Create combined raw context for email generation
-        raw_context = (
-            f"Name: {contact.full_name}\n"
-            f"Company Domain: {contact.company_domain}\n"
-            f"Job Title: {contact.job_title}\n"
-            f"LinkedIn: {contact.linkedin_profile}\n"
-            f"Location: {contact.location}\n"
-            f"Company Info: {contact.company_context}\n"
-            f"Person Info: {contact.person_context}"
-        )
-        
-        # Store the raw context
-        contact.company_raw_context = raw_context
-        
+        print(f"Web search complete")
+        contact.context = str(web_context.get('company_info', '') + web_context.get('person_info', ''))
+        print(f"Context: updated")
+
+
         # Process with email agent
         experiences, email_body = await email_agent.process_contact(
-            contact.full_name,
-            contact.company_domain,
-            raw_context
+            contact,
         )
-        
-        # Store the draft email
-        contact.draft_email = email_body
         
         # Debug printing
         print("\nProcessed Contact Information:")
         print(f"Name: {contact.full_name}")
-        print(f"Company Context Length: {len(contact.company_context)}")
-        print(f"Person Context Length: {len(contact.person_context)}")
+        print(f" Context Length: {len(contact.context)}")
         print(f"Draft Email Length: {len(contact.draft_email) if contact.draft_email else 0}")
-        
+
         return contact
         
     except Exception as e:
         print(f"Error processing contact {contact.full_name}: {str(e)}")
         return contact
 
-def save_emails_to_csv(email_data_list: List[EmailData]):
+def save_emails_to_csv(contacts: List[Contact]):
     """
     Save multiple email details to a CSV file at once.
     """
@@ -299,14 +279,13 @@ def save_emails_to_csv(email_data_list: List[EmailData]):
                 writer.writeheader()
             
             # Write all email data at once
-            for email_data in email_data_list:
-                if email_data:  # Only write if email_data is not None
+            for contact in contacts:
+                if contact.work_email:  # Only write if email_data is not None
                     writer.writerow({
-                        'Name': email_data.name,
-                        'Email Address': email_data.email,
-                        'Subject': email_data.subject,
-                        'Email Body': email_data.body,
-                        'Timestamp': email_data.timestamp
+                        'Name': contact.full_name,
+                        'Email Address': contact.work_email,
+                        'Email Body': contact.draft_email,
+                        'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     })
             
         print(f"All email details saved to {filename}")
@@ -378,10 +357,10 @@ def update_sheet_with_contact_info(spreadsheet_id: str, range_name: str, contact
         if len(values) > 1:  # If we have data rows
             for idx, row in enumerate(values[1:], start=2):  # Skip header
                 if len(row) > 6:  # If row has email column
-                    email_to_row[row[6]] = idx
+                    email_to_row[row[7]] = idx
         
         # If sheet is empty or no headers, initialize headers
-        if not values:
+        '''if not values:
             headers = [
                 'Match', 'Full Name', 'Job Title', 'Location', 
                 'Company Domain', 'LinkedIn Profile', 'Work Email',
@@ -396,7 +375,7 @@ def update_sheet_with_contact_info(spreadsheet_id: str, range_name: str, contact
             ).execute()
             next_row = 2
         else:
-            next_row = len(values) + 1
+            next_row = len(values) + 1'''
         
         # Prepare updates
         updates = []
@@ -408,12 +387,9 @@ def update_sheet_with_contact_info(spreadsheet_id: str, range_name: str, contact
                 contact.job_title,
                 contact.location,
                 contact.company_domain,
+                contact.company_name,
                 contact.linkedin_profile,
                 contact.work_email,
-                contact.company_context,
-                contact.company_raw_context,
-                contact.person_context,
-                contact.person_raw_context,
                 contact.draft_email
             ]
             
@@ -421,14 +397,15 @@ def update_sheet_with_contact_info(spreadsheet_id: str, range_name: str, contact
             if contact.work_email in email_to_row:
                 row_idx = email_to_row[contact.work_email]
                 print(f"Updating existing contact at row {row_idx}: {contact.full_name}")
+
                 updates.append({
-                    'range': f'Sheet1!A{row_idx}:L{row_idx}',
+                    'range': f'Sheet1!A{row_idx}:I{row_idx}',
                     'values': [new_row]
                 })
             else:
                 print(f"Adding new contact at row {next_row}: {contact.full_name}")
                 updates.append({
-                    'range': f'Sheet1!A{next_row}:L{next_row}',
+                    'range': f'Sheet1!A{next_row}:I{next_row}',
                     'values': [new_row]
                 })
                 next_row += 1
@@ -478,15 +455,20 @@ async def main():
             # Wait for all contacts to be processed
             processed_contacts = await process_all_contacts(contacts)
             
-            print("\nAll contacts processed, updating sheet...")
             if processed_contacts:
-                update_sheet_with_contact_info(SPREADSHEET_ID,RANGE_NAME, processed_contacts)
+                # Export to CSV
+                print("\nExporting contacts to CSV...")
+                save_emails_to_csv(processed_contacts)
+
+                
+                # Update Google Sheet
+                print("\nUpdating Google Sheet...")
+                update_sheet_with_contact_info(SPREADSHEET_ID, RANGE_NAME, processed_contacts)
                 
                 print("\nProcess complete! Updated contacts:")
                 for contact in processed_contacts:
                     print(f"\nContact: {contact.full_name}")
-                    print(f"Company Context Length: {len(contact.company_context) if contact.company_context else 0}")
-                    print(f"Person Context Length: {len(contact.person_context) if contact.person_context else 0}")
+                    print(f"Company Context Length: {len(contact.context) if contact.context else 0}")
                     print(f"Draft Email Length: {len(contact.draft_email) if contact.draft_email else 0}")
             else:
                 print("No contacts were successfully processed")
@@ -498,61 +480,8 @@ async def main():
 
 if __name__ == "__main__":
     # Normal execution
-    #asyncio.run(main())
+    asyncio.run(main())
     
-    # Test section for update_sheet_with_contact_info
-    print("\n" + "="*50)
-    print("TESTING SHEET UPDATE FUNCTIONALITY")
-    print("="*50)
-    
-    try:
-        # Create dummy contact data
-        test_contacts = []
-        
-        # Test Contact 1
-        contact_data_1 = {
-            'Match': 'Y',
-            'Full Name': 'Test Person 1',
-            'Job Title': 'Test Engineer',
-            'Location': 'Test City, State',
-            'Company Domain': 'testcompany.com',
-            'Linkedin Profile': 'Y',
-            'Work Email': 'test1@testcompany.com',
-            'Company Context': 'This is test company context 1',
-            'Company Raw Context': 'This is raw company context 1',
-            'Person Context': 'This is person context 1',
-            'Person Raw Context': 'This is raw person context 1',
-            'Draft Email': 'This is a test draft email 1'
-        }
-        
-        # Test Contact 2
-        contact_data_2 = {
-            'Match': 'Y',
-            'Full Name': 'Test Person 2',
-            'Job Title': 'Test Manager',
-            'Location': 'Test City, State',
-            'Company Domain': 'testcompany.com',
-            'Linkedin Profile': 'Y',
-            'Work Email': 'test2@testcompany.com',
-            'Company Context': 'This is test company context 2',
-            'Company Raw Context': 'This is raw company context 2',
-            'Person Context': 'This is person context 2',
-            'Person Raw Context': 'This is raw person context 2',
-            'Draft Email': 'This is a test draft email 2'
-        }
-        
-        # Add more test contacts as needed
-        test_contacts.append(Contact(contact_data_1))
-        test_contacts.append(Contact(contact_data_2))
-        
-        # Update sheet with test contacts
-        update_sheet_with_contact_info(SPREADSHEET_ID, RANGE_NAME,test_contacts)
-        
-        print("Test section complete. Sheet updated successfully.")
-    except Exception as e:
-        print(f"An error occurred during testing: {str(e)}")
-        import traceback
-        print(f"Traceback: {traceback.format_exc()}")
 
 
 

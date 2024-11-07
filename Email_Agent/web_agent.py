@@ -91,8 +91,6 @@ def tavily_extract_content(query, max_results=2):
         
         # Then, extract content from these URLs
         response = tavily_client.extract(urls=urls)
-        print("Extracted content:")
-        print(json.dumps(response, indent=2, ensure_ascii=False))
         return response
     except Exception as e:
         print(f"An error occurred during Tavily content extraction: {str(e)}")
