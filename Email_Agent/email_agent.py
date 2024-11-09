@@ -4,6 +4,7 @@ from langchain.chains import LLMChain
 import os
 from secrets import get_secret
 from dotenv import load_dotenv
+from contacts import Contact
 
 class EmailAgent:
     def __init__(self):
@@ -25,7 +26,7 @@ class EmailAgent:
         # Initialize experience chain
         experience_prompt = ChatPromptTemplate.from_messages([
             ("system", "You are an AI assistant that extracts key experiences and achievements."),
-            ("user", "Given the following information about {name} from {company}, extract key experiences and achievements: \n\n{context}")
+            ("user", "Given the following information about {name} from {company}, extract key experiences and achievements: \n\n{context} no more than 15 bullet points")
         ])
         
         self.experience_chain = LLMChain(
@@ -75,26 +76,33 @@ class EmailAgent:
             prompt=email_prompt
         )
 
-    async def process_contact(self, name: str, company: str, context: str):
+    async def process_contact(self, contact: Contact):
         """
         Process a contact asynchronously
         """
         try:
             # Run the experience chain
             experience_response = await self.experience_chain.ainvoke({
-                "name": name,
-                "company": company,
-                "context": context
+                "name": contact.full_name,
+                "company": contact.company_name,
+                "context": contact.context
             })
             experiences = experience_response.get('text', '')
+            print(f"contact.context is type: {type(contact.context)}")
+            print(f"experiences is type: {type(experiences)}")
+            contact.context += experiences
+            print("This is not the prpoblem!!!!!!!")
 
             # Run the email chain
             email_response = await self.email_chain.ainvoke({
-                "name": name,
-                "company": company,
+                "name": contact.full_name,
+                "company": contact.company_domain,
                 "experiences": experiences
             })
             email_body = email_response.get('text', '')
+            contact.draft_email = email_body
+
+            print(f"In email agent, draft email: {contact.draft_email}")
 
             return experiences, email_body
             
