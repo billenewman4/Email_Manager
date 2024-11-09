@@ -21,7 +21,7 @@ from contacts import Contact
 SPREADSHEET_ID = '1xyGHQBRn5dfFG3utdAifs2ubMJtolVK9Qoy9YJGoheg'
 RANGE_NAME = 'Sheet1!A1:I'
 
-def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int = 100) -> List[Contact]:
+def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int = 4 ) -> List[Contact]:
     """
     Read contacts from Google Sheets and return as Contact objects.
     
@@ -56,31 +56,30 @@ def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int =
         # Get headers from first row
         headers = values[0]
         
+        # Define expected headers based on Contact object
+        expected_headers = [
+            'Match', 'Full Name', 'Job Title', 'Location', 
+            'Company Domain', 'Company Name', 'LinkedIn', 
+            'Work Email', 'draft_email'
+        ]
+        
+        # Check if headers match expected headers
+        if headers != expected_headers:
+            raise ValueError(f"Header mismatch: Expected {expected_headers}, but got {headers}")
+        
         # Convert rows to Contact objects
         contacts = []
         for row in values[1:limit+1]:  # Skip header row and respect limit
-            # Check if row needs padding
-            if len(row)-4 < len(headers):
-                print("\n")
-                print("!" * 80)
-                print("WARNING: ROW DATA MISMATCH DETECTED!")
-                print(f"Row has {len(row)} columns but should have {len(headers)} columns")
-                print(f"Headers: {headers}")
-                print(f"Current row data: {row}")
-                print("Adding padding to match header length")
-                print("!" * 80)
-                print("\n")
-            
             # Pad the row with empty strings if needed
-            row_data = row + [''] * (len(headers) - len(row))
+            padded_row = row + [''] * (len(headers) - len(row))
             
             # Create dictionary with header keys and row values
-            contact_data = dict(zip(headers, row_data))
+            row_data = dict(zip(headers, padded_row))
             
             # Create Contact object
-            contact = Contact(contact_data)
+            contact = Contact(row_data)
             
-            # Only add valid contacts
+            # Only add valid contacts (validation happens in is_valid_contact())
             if contact.is_valid_contact():
                 contacts.append(contact)
         
@@ -90,8 +89,6 @@ def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int =
     except Exception as e:
         print(f"Error reading from Google Sheets: {str(e)}")
         return []
-
-
 
 def read_contacts_from_csv(file_path, limit=100):
    """
@@ -114,7 +111,7 @@ def read_contacts_from_csv(file_path, limit=100):
                    'email': row.get('Work Email', ''),
                    'company_domain': row.get('Company Domain', ''),
                    'job_title': row.get('Job Title', ''),
-                   'linkedin_profile': row.get('LinkedIn Profile', ''),
+                   'LinkedIn': row.get('LinkedIn Profile', ''),
                    'company': row.get('Company Name', '')
                 }
                contacts.append(contact)
@@ -206,14 +203,6 @@ def save_email_to_csv(name, email, subject, body):
     except Exception as e:
         print(f"Error saving to CSV: {str(e)}")
 
-@dataclass
-class EmailData:
-    name: str
-    email: str
-    subject: str
-    body: str
-    timestamp: str
-
 async def process_single_contact(contact: Contact, email_agent: EmailAgent) -> Contact:
     """
     Process a single contact asynchronously
@@ -221,7 +210,11 @@ async def process_single_contact(contact: Contact, email_agent: EmailAgent) -> C
     try:
         if contact.draft_email:
             print(f"\nSkipping {contact.full_name} because they already have a draft email")
-            return contact
+            return None
+        if not contact.work_email:
+            print(f"\nSkipping {contact.full_name} because they don't have a work email")
+            return None
+        
         print(f"\nStarting to process contact: {contact.full_name}")
         
         # Search the web
@@ -229,7 +222,7 @@ async def process_single_contact(contact: Contact, email_agent: EmailAgent) -> C
             'name': contact.full_name,
             'company_domain': contact.company_domain,
             'job_title': contact.job_title,
-            'linkedin_profile': contact.linkedin_profile,
+            'LinkedIn': contact.LinkedIn,
             'company': contact.company_domain.split('.')[0] if contact.company_domain else ''
         })
         print(f"Web search complete")
@@ -351,47 +344,28 @@ def update_sheet_with_contact_info(spreadsheet_id: str, range_name: str, contact
         ).execute()
         
         values = result.get('values', [])
+        if not values:
+            print("No data found in sheet.")
+            return
+        
+        # Get headers from the first row
+        headers = values[0]
+        
+        # Create a mapping from header names to column indices
+        header_to_index = {header: idx for idx, header in enumerate(headers)}
         
         # Create email to row index mapping to avoid repeated searches
         email_to_row = {}
         if len(values) > 1:  # If we have data rows
             for idx, row in enumerate(values[1:], start=2):  # Skip header
-                if len(row) > 6:  # If row has email column
-                    email_to_row[row[7]] = idx
-        
-        # If sheet is empty or no headers, initialize headers
-        '''if not values:
-            headers = [
-                'Match', 'Full Name', 'Job Title', 'Location', 
-                'Company Domain', 'LinkedIn Profile', 'Work Email',
-                'Company Context', 'Company Raw Context', 
-                'Person Context', 'Person Raw Context', 'Draft Email'
-            ]
-            sheet.values().update(
-                spreadsheetId=spreadsheet_id,
-                range='Sheet1!A1:L1',
-                valueInputOption='RAW',
-                body={'values': [headers]}
-            ).execute()
-            next_row = 2
-        else:
-            next_row = len(values) + 1'''
-        
+                if len(row) > header_to_index.get('Work Email', -1):  # Check if email column exists
+                    email_to_row[row[header_to_index['Work Email']]] = idx
+         
         # Prepare updates
         updates = []
         for contact in contacts:
             # Convert contact to row data
-            new_row = [
-                contact.match,
-                contact.full_name,
-                contact.job_title,
-                contact.location,
-                contact.company_domain,
-                contact.company_name,
-                contact.linkedin_profile,
-                contact.work_email,
-                contact.draft_email
-            ]
+            new_row = contact.to_list()
             
             # Check if contact exists using our mapping
             if contact.work_email in email_to_row:
@@ -399,16 +373,17 @@ def update_sheet_with_contact_info(spreadsheet_id: str, range_name: str, contact
                 print(f"Updating existing contact at row {row_idx}: {contact.full_name}")
 
                 updates.append({
-                    'range': f'Sheet1!A{row_idx}:I{row_idx}',
+                    'range': f'Sheet1!A{row_idx}:{chr(65 + len(headers) - 1)}{row_idx}',
                     'values': [new_row]
                 })
             else:
+                next_row = len(values) + 1
                 print(f"Adding new contact at row {next_row}: {contact.full_name}")
                 updates.append({
-                    'range': f'Sheet1!A{next_row}:I{next_row}',
+                    'range': f'Sheet1!A{next_row}:{chr(65 + len(headers) - 1)}{next_row}',
                     'values': [new_row]
                 })
-                next_row += 1
+                values.append(new_row)  # Simulate adding a new row
         
         # Execute updates
         if updates:
@@ -448,7 +423,7 @@ async def main():
             print(f"Email: {contact.work_email}")
             print(f"Company: {contact.company_domain}")
             print(f"Job Title: {contact.job_title}")
-            print(f"LinkedIn: {contact.linkedin_profile}")
+            print(f"LinkedIn: {contact.LinkedIn}")
         
         if contacts:
             print("\nProcessing contacts...")
@@ -482,6 +457,3 @@ if __name__ == "__main__":
     # Normal execution
     asyncio.run(main())
     
-
-
-
