@@ -10,9 +10,8 @@ class Contact:
         self.location = data.get('Location')
         self.company_domain = data.get('Company Domain')
         self.company_name = data.get('Company Name')
-        self.linkedin_profile = data.get('Linkedin Profile')
+        self.LinkedIn = data.get('LinkedIn')
         self.work_email = data.get('Work Email')
-        self.context = data.get('Context')
         self.draft_email = data.get('Draft Email')
 
     def print_properties(self):
@@ -22,24 +21,30 @@ class Contact:
 
     def is_valid_contact(self):
         """
-        Check if this is a valid contact with required fields.
+        Check if this is a valid contact with required fields and no draft email.
         """
-        required_fields = ['full_name', 'company_domain']
-        return all(getattr(self, field) for field in required_fields)
+        required_fields = ['full_name', 'company_domain','work_email']
+        return all(getattr(self, field) for field in required_fields) and not self.draft_email
 
     def to_dict(self):
         """
         Convert contact to dictionary format for easy export.
         """
-        return {
-            'Match': self.match,
-            'Full Name': self.full_name,
-            'Job Title': self.job_title,
-            'Location': self.location,
-            'Company Domain': self.company_domain,
-            'Company Name': self.company_name,
-            'Linkedin Profile': self.linkedin_profile,
-            'Work Email': self.work_email,
-            'Context': self.context,
-            'Draft Email': self.draft_email
-        }
+        return vars(self)
+
+    def to_list(self):
+        """
+        Convert contact to list format for sheet updates.
+        Ensures attributes are in the same order as sheet headers.
+        """
+        return [
+            self.match,
+            self.full_name,
+            self.job_title,
+            self.location,
+            self.company_domain,
+            self.company_name,
+            self.LinkedIn,
+            self.work_email,
+            self.draft_email
+        ]
