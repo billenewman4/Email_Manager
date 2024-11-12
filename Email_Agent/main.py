@@ -1,3 +1,4 @@
+import os
 from email_agent import EmailAgent
 from contacts import Contact
 from sender import Sender
@@ -5,120 +6,469 @@ from secrets_ret import get_secret
 import requests
 import json
 from web_agent import tavily_context_search
-import os
-from email_graph import run_email_workflow
-from langchain_openai import ChatOpenAI
+import csv
+from datetime import datetime
+import asyncio
+from typing import List
+import aiohttp
+from dataclasses import dataclass
+from web_agent import tavily_search
+from functools import partial
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
+from contacts import Contact
 
-def get_sample_contact():
+#GLobal variables
+SPREADSHEET_ID = '1xyGHQBRn5dfFG3utdAifs2ubMJtolVK9Qoy9YJGoheg'
+RANGE_NAME = 'Sheet1!A1:I'
+
+def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int = 400 ) -> List[Contact]:
+    """
+    Read contacts from Google Sheets and return as Contact objects.
+    
+    :param spreadsheet_id: The ID of the Google Sheet
+    :param range_name: The range to read (e.g., 'Sheet1!A2:G100')
+    :param limit: Maximum number of contacts to read
+    :return: List of Contact objects
+    """
     try:
-        response = requests.get(get_secret("EMAIL_DRAFTER_URL") + "/sample-contact")
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException as e:
-        print(f"An error occurred while fetching the sample contact: {e}")
+        # Setup Google Sheets credentials
+        SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+        SERVICE_ACCOUNT_FILE = 'customeroutreach-440901-18943c7c0e95.json'
+        
+        credentials = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        
+        # Build the Google Sheets service
+        service = build('sheets', 'v4', credentials=credentials)
+        sheet = service.spreadsheets()
+        
+        # Request data from Google Sheets
+        result = sheet.values().get(
+            spreadsheetId=spreadsheet_id,
+            range=range_name
+        ).execute()
+        
+        values = result.get('values', [])
+        if not values:
+            print('No data found in sheet.')
+            return []
+            
+        # Get headers from first row
+        headers = values[0]
+        
+        # Define expected headers based on Contact object
+        expected_headers = [
+            'Match', 'Full Name', 'Job Title', 'Location', 
+            'Company Domain', 'Company Name', 'LinkedIn', 
+            'Work Email', 'draft_email'
+        ]
+        
+        # Check if headers match expected headers
+        if headers != expected_headers:
+            raise ValueError(f"Header mismatch: Expected {expected_headers}, but got {headers}")
+        
+        # Convert rows to Contact objects
+        contacts = []
+        for row in values[1:limit+1]:  # Skip header row and respect limit
+            # Pad the row with empty strings if needed
+            padded_row = row + [''] * (len(headers) - len(row))
+            
+            # Create dictionary with header keys and row values
+            row_data = dict(zip(headers, padded_row))
+            
+            # Debug print raw data
+            print(f"\nRaw data for {row_data.get('Full Name')}:")
+            print(f"Draft Email column raw value: '{row_data.get('draft_email')}'")
+            print(f"Row data: {row_data}")
+            
+            # Create Contact object
+            contact = Contact(row_data)
+            
+            # Debug print contact object
+            print(f"Contact object draft_email: '{contact.draft_email}'")
+            print(f"Is valid: {contact.is_valid_contact()}")
+            
+            # Only add valid contacts (validation happens in is_valid_contact())
+            if contact.is_valid_contact():
+                contacts.append(contact)
+        
+        print(f"Successfully read {len(contacts)} contacts from Google Sheets")
+        return contacts
+        
+    except Exception as e:
+        print(f"Error reading from Google Sheets: {str(e)}")
+        return []
+
+def read_contacts_from_csv(file_path, limit=100):
+   """
+   Read contacts from a CSV file, up to a specified limit.
+   
+   :param file_path: Path to the CSV file
+   :param limit: Maximum number of contacts to read (default: 2)
+   :return: List of contact dictionaries
+   """
+   contacts = []
+   try:
+       with open(file_path, 'r') as csvfile:
+           reader = csv.DictReader(csvfile)
+           for i, row in enumerate(reader):
+               if i >= limit:
+                   break
+               if row.get('Work Email') and row.get('Work Email').strip():
+                   contact = {
+                   'name': row.get('Full Name', ''),
+                   'email': row.get('Work Email', ''),
+                   'company_domain': row.get('Company Domain', ''),
+                   'job_title': row.get('Job Title', ''),
+                   'LinkedIn': row.get('LinkedIn Profile', ''),
+                   'company': row.get('Company Name', '')
+                }
+               contacts.append(contact)
+   except Exception as e:
+       print(f"An error occurred while reading the CSV file: {e}")
+   return contacts
+
+async def search_web(contact: dict) -> dict:
+    """
+    Perform web searches for company and person information concurrently.
+    """
+    try:
+        # Create tasks for both searches
+        if contact['company_domain']:
+            company_query = f"Tell me about {contact['company']} with website site:{contact['company_domain']} so I can get more context for a cold email"
+        else:
+            company_query = contact['company']
+        
+        person_query = f" Tell me about {contact['name']} who works at {contact['company']} as {contact['job_title']}"
+        
+        print("\n" + "="*50)
+        print("Starting web searches:")
+        print(f"Company query: {company_query}")
+        print(f"Person query: {person_query}")
+        print("="*50 + "\n")
+        
+        # Run both searches concurrently
+        company_task = asyncio.create_task(tavily_search(company_query))
+        person_task = asyncio.create_task(tavily_search(person_query))
+        
+        # Wait for both searches to complete
+        company_info, person_info = await asyncio.gather(company_task, person_task)
+        
+        # Debug print the results
+        print("\n" + "="*50)
+        print("Search Results:")
+        print(f"Company info found: {'Yes' if company_info else 'No'}")
+        print(f"Company info length: {len(company_info) if company_info else 0}")
+        print(f"Person info found: {'Yes' if person_info else 'No'}")
+        print(f"Person info length: {len(person_info) if person_info else 0}")
+        print("="*50 + "\n")
+        
+        return {
+            'company_info': company_info or '',  # Ensure we return empty string if None
+            'person_info': person_info or ''     # Ensure we return empty string if None
+        }
+    except Exception as e:
+        print(f"Error in web search: {str(e)}")
+        return {
+            'company_info': '',
+            'person_info': ''
+        }
+
+def save_email_to_csv(name, email, subject, body):
+    """
+    Save email details to a CSV file.
+    Creates a new file if it doesn't exist, otherwise appends to existing file.
+    """
+    # Create 'logs' directory if it doesn't exist
+    logs_dir = 'logs'
+    if not os.path.exists(logs_dir):
+        os.makedirs(logs_dir)
+    
+    # Create filename with current date
+    filename = os.path.join(logs_dir, f'email_log_{datetime.now().strftime("%Y-%m-%d")}.csv')
+    
+    # Check if file exists to determine if we need to write headers
+    file_exists = os.path.isfile(filename)
+    
+    try:
+        with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['Name', 'Email Address', 'Subject', 'Email Body', 'Timestamp']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            # Write headers if file is new
+            if not file_exists:
+                writer.writeheader()
+            
+            # Write the email data
+            writer.writerow({
+                'Name': name,
+                'Email Address': email,
+                'Subject': subject,
+                'Email Body': body,
+                'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            
+        print(f"Email details saved to {filename}")
+    except Exception as e:
+        print(f"Error saving to CSV: {str(e)}")
+
+async def process_single_contact(contact: Contact, email_agent: EmailAgent) -> Contact:
+    """
+    Process a single contact asynchronously
+    """
+    try:
+        if contact.draft_email:
+            print(f"\nSkipping {contact.full_name} because they already have a draft email")
+            return None
+        if not contact.work_email:
+            print(f"\nSkipping {contact.full_name} because they don't have a work email")
+            return None
+        
+        print(f"\nStarting to process contact: {contact.full_name}")
+        
+        # Search the web
+        web_context = await search_web({
+            'name': contact.full_name,
+            'company_domain': contact.company_domain,
+            'job_title': contact.job_title,
+            'LinkedIn': contact.LinkedIn,
+            'company': contact.company_domain.split('.')[0] if contact.company_domain else ''
+        })
+        print(f"Web search complete")
+        contact.context = str(web_context.get('company_info', '') + web_context.get('person_info', ''))
+        print(f"Context: updated")
+
+
+        # Process with email agent
+        experiences, email_body = await email_agent.process_contact(
+            contact,
+        )
+        
+        # Debug printing
+        print("\nProcessed Contact Information:")
+        print(f"Name: {contact.full_name}")
+        print(f" Context Length: {len(contact.context)}")
+        print(f"Draft Email Length: {len(contact.draft_email) if contact.draft_email else 0}")
+
+        return contact
+        
+    except Exception as e:
+        print(f"Error processing contact {contact.full_name}: {str(e)}")
+        return contact
+
+def save_emails_to_csv(contacts: List[Contact]):
+    """
+    Save multiple email details to a CSV file at once.
+    """
+    # Create 'logs' directory if it doesn't exist
+    logs_dir = 'logs'
+    if not os.path.exists(logs_dir):
+        os.makedirs(logs_dir)
+    
+    # Create filename with current date
+    filename = os.path.join(logs_dir, f'email_log_{datetime.now().strftime("%Y-%m-%d")}.csv')
+    
+    # Check if file exists to determine if we need to write headers
+    file_exists = os.path.isfile(filename)
+    
+    try:
+        with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['Name', 'Email Address', 'Subject', 'Email Body', 'Timestamp']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            # Write headers if file is new
+            if not file_exists:
+                writer.writeheader()
+            
+            # Write all email data at once
+            for contact in contacts:
+                if contact.work_email:  # Only write if email_data is not None
+                    writer.writerow({
+                        'Name': contact.full_name,
+                        'Email Address': contact.work_email,
+                        'Email Body': contact.draft_email,
+                        'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+            
+        print(f"All email details saved to {filename}")
+    except Exception as e:
+        print(f"Error saving to CSV: {str(e)}")
+
+async def process_all_contacts(contacts: List[Contact]):
+    """
+    Process contacts concurrently in smaller batches to manage API rate limits
+    """
+    # Filter invalid contacts BEFORE processing
+    valid_contacts = [contact for contact in contacts if contact.is_valid_contact()]
+    print(f"Filtered out {len(contacts) - len(valid_contacts)} contacts that didn't meet validation criteria")
+    
+    email_agent = EmailAgent()
+    results = []
+    batch_size = 10  # Adjust this number based on API limits
+    
+    # Process only valid contacts in batches
+    for i in range(0, len(valid_contacts), batch_size):
+        batch = valid_contacts[i:i + batch_size]
+        print(f"\nProcessing batch of {len(batch)} contacts...")
+        
+        # Create tasks for the batch
+        tasks = [
+            asyncio.create_task(
+                process_single_contact(contact, email_agent),
+                name=f"Contact_{contact.full_name}"  # Changed from contact['name'] to contact.full_name
+            )
+            for contact in batch
+        ]
+        
+        # Wait for the current batch to complete
+        batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+        results.extend(batch_results)
+        
+        # Print batch completion status
+        successful = sum(1 for r in batch_results if isinstance(r, Contact))
+        print(f"Batch complete. Successful: {successful}/{len(batch)}")
+    
+    # Filter out None values and exceptions
+    valid_results = [r for r in results if isinstance(r, Contact)]
+    failed = len(results) - len(valid_results)
+    
+    print(f"\nAll processing complete. Successful: {len(valid_results)}, Failed: {failed}")
+    return valid_results
+
+def update_sheet_with_contact_info(spreadsheet_id: str, range_name: str, contacts: List[Contact]) -> None:
+    """
+    Update specific rows in Google Sheet with processed contact information.
+    Only updates rows where we find a matching contact and only updates changed fields.
+    """
+    try:
+        SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+        SERVICE_ACCOUNT_FILE = 'customeroutreach-440901-18943c7c0e95.json'
+        
+        credentials = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        
+        service = build('sheets', 'v4', credentials=credentials)
+        sheet = service.spreadsheets()
+        
+        # Get current sheet data once
+        result = sheet.values().get(
+            spreadsheetId=spreadsheet_id,
+            range=range_name  # Extended range to include all fields
+        ).execute()
+        
+        values = result.get('values', [])
+        if not values:
+            print("No data found in sheet.")
+            return
+        
+        # Get headers from the first row
+        headers = values[0]
+        
+        # Create a mapping from header names to column indices
+        header_to_index = {header: idx for idx, header in enumerate(headers)}
+        
+        # Create email to row index mapping to avoid repeated searches
+        email_to_row = {}
+        if len(values) > 1:  # If we have data rows
+            for idx, row in enumerate(values[1:], start=2):  # Skip header
+                if len(row) > header_to_index.get('Work Email', -1):  # Check if email column exists
+                    email_to_row[row[header_to_index['Work Email']]] = idx
+         
+        # Prepare updates
+        updates = []
+        for contact in contacts:
+            # Convert contact to row data
+            new_row = contact.to_list()
+            
+            # Check if contact exists using our mapping
+            if contact.work_email in email_to_row:
+                row_idx = email_to_row[contact.work_email]
+                print(f"Updating existing contact at row {row_idx}: {contact.full_name}")
+
+                updates.append({
+                    'range': f'Sheet1!A{row_idx}:{chr(65 + len(headers) - 1)}{row_idx}',
+                    'values': [new_row]
+                })
+            else:
+                next_row = len(values) + 1
+                print(f"Adding new contact at row {next_row}: {contact.full_name}")
+                updates.append({
+                    'range': f'Sheet1!A{next_row}:{chr(65 + len(headers) - 1)}{next_row}',
+                    'values': [new_row]
+                })
+                values.append(new_row)  # Simulate adding a new row
+        
+        # Execute updates
+        if updates:
+            body = {
+                'valueInputOption': 'RAW',
+                'data': updates
+            }
+            
+            result = service.spreadsheets().values().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body=body
+            ).execute()
+            
+            print(f"Updated/Added {len(updates)} rows in the sheet")
+            return result
+        else:
+            print("No updates needed")
+            return None
+            
+    except Exception as e:
+        print(f"Error updating Google Sheet: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return None
 
-def search_web(contact):
-    context = {}
-    context['company_info'] = tavily_context_search(contact.company)
-    context['person_info'] = tavily_context_search(contact.name)
-    return context
-
-def get_sample_sender(llm):
-    # Read resume content from file
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    resume_path = os.path.join(script_dir, 'bill_resume.txt')
-    
+async def main():
     try:
-        with open(resume_path, 'r') as file:
-            resume_content = file.read()
-    except FileNotFoundError:
-        print(f"Warning: Resume file not found at {resume_path}. Using placeholder content.")
-        resume_content = "Sample resume content..."
+        SPREADSHEET_ID = '1xyGHQBRn5dfFG3utdAifs2ubMJtolVK9Qoy9YJGoheg'
+        
+        # Read contacts
+        contacts = read_contacts_from_sheets(SPREADSHEET_ID, RANGE_NAME)
+        
+        print("\nContacts loaded:")
+        for i, contact in enumerate(contacts, 1):
+            print(f"\nContact {i}:")
+            print(f"Name: {contact.full_name}")
+            print(f"Email: {contact.work_email}")
+            print(f"Company: {contact.company_domain}")
+            print(f"Job Title: {contact.job_title}")
+            print(f"LinkedIn: {contact.LinkedIn}")
+        
+        if contacts:
+            print("\nProcessing contacts...")
+            # Wait for all contacts to be processed
+            processed_contacts = await process_all_contacts(contacts)
+            
+            if processed_contacts:
+                # Export to CSV
+                print("\nExporting contacts to CSV...")
+                save_emails_to_csv(processed_contacts)
 
-    # Create and initialize sender
-    sender = Sender(
-        name="Bill Newman",
-        resume=resume_content,
-        career_interest="Interested in how Service-as-a-Software (SaaS) companies are using AI to automate business services",
-        key_accomplishments=[
-            "Worked at a YC backed startup using AI to increase agricultural productivity, at McKinsey worked for startups in the blockcahin, SaaS, and quantum computing sectors",
-            "Currently a student at Harvard Business School (HBS) studying a master in business administration and I am interested in vertical application for AI in enteprise software "
-        ],
-        llm=llm
-    )
+                
+                # Update Google Sheet
+                print("\nUpdating Google Sheet...")
+                update_sheet_with_contact_info(SPREADSHEET_ID, RANGE_NAME, processed_contacts)
+                
+                print("\nProcess complete! Updated contacts:")
+                for contact in processed_contacts:
+                    print(f"\nContact: {contact.full_name}")
+                    print(f"Company Context Length: {len(contact.context) if contact.context else 0}")
+                    print(f"Draft Email Length: {len(contact.draft_email) if contact.draft_email else 0}")
+            else:
+                print("No contacts were successfully processed")
     
-    # Process the sender's content immediately
-    print("\nProcessing sender information...")
-    sender.process_relevant_content()
-    print("Sender information processed successfully")
-    
-    return sender
-
-def update_context(email_agent, web_context):
-    """Update the email agent's context with web search results"""
-    raw_context = web_context['company_info'] + "\n" + web_context['person_info']
-    web_relevant_content = email_agent.extract_relevant_content(raw_context)
-    print("\nRelevant Web Content Extracted:")
-    print(web_relevant_content)
-    return web_relevant_content
-
-if __name__ == "__main__":
-    try:
-        # Step 1: Initialize LLM
-        print("Initializing LLM...")
-        openai_api_key = get_secret("OpenAPI_KEY")
-        llm = ChatOpenAI(temperature=0.7, model="gpt-4", openai_api_key=openai_api_key)
-        print("LLM initialized successfully")
-
-        # Step 2: Get and create contact
-        print("\nFetching sample contact...")
-        sample_contact_data = get_sample_contact()
-        if not sample_contact_data:
-            raise ValueError("Failed to get sample contact")
-        print("Sample Contact:")
-        print(json.dumps(sample_contact_data, indent=2))
-
-        contact = Contact(sample_contact_data)
-        print("Contact object created successfully")
-
-        # Step 3: Create and process sender
-        sender = get_sample_sender(llm)
-
-        # Step 4: Create EmailAgent
-        print("\nCreating EmailAgent...")
-        email_agent = EmailAgent(contact, sender)
-        print("EmailAgent created successfully")
-
-        # Step 5: Search web and process context
-        print("\nSearching web for context...")
-        web_context = search_web(contact)
-        print("Web Search Results:")
-        print(json.dumps(web_context, indent=2))
-
-        # Step 6: Update context with web search results
-        web_relevant_content = update_context(email_agent, web_context)
-
-        # Step 7: Run email workflow
-        print("\nStarting email workflow with LangGraph...")
-        try:
-            final_state = run_email_workflow(
-                email_agent=email_agent,
-                sender_info=sender.get_relevant_content(),
-
-                context=web_relevant_content
-            )
-
-            # Print results
-            print("\nFinal Email Draft:")
-            print(final_state["draft"])
-            print("\nFinal Critique:")
-            print(final_state["critique"])
-            print(f"\nNumber of Revision Rounds Completed: {final_state['revision_count']}")
-
-        except Exception as e:
-            print(f"An error occurred in the email workflow: {str(e)}")
-            raise
-
     except Exception as e:
         print(f"An error occurred: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+
+if __name__ == "__main__":
+    # Normal execution
+    asyncio.run(main())
+    

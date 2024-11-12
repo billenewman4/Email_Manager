@@ -4,50 +4,48 @@ from dateutil.relativedelta import relativedelta
 
 class Contact:
     def __init__(self, data):
-        self.id = data.get('id')
-        self.name = data.get('name')
-        self.created_time = data.get('createdTime')
-        self.last_edited_time = data.get('lastEditedTime')
-        self.url = data.get('url')
-        self.email = data.get('email')
-        self.linkedin_url = data.get('linkedInURL')
-        self.date_last_contacted = data.get('dateLastContacted')
-        self.status = data.get('status')
-        self.next_steps = data.get('nextSteps')
-        self.role = data.get('role')
-        self.contact_type = data.get('contactType')
-        self.meeting_notes = data.get('meetingNotes')
-        self.company = data.get('company')
-        self.company_info = data.get('companyInfo')
+        self.match = data.get('Match')
+        self.full_name = data.get('Full Name')
+        self.job_title = data.get('Job Title')
+        self.location = data.get('Location')
+        self.company_domain = data.get('Company Domain')
+        self.company_name = data.get('Company Name')
+        self.LinkedIn = data.get('LinkedIn')
+        self.work_email = data.get('Work Email')
+        self.draft_email = data.get('draft_email', '')
 
     def print_properties(self):
         for key, value in self.__dict__.items():
             print(f"{key.replace('_', ' ').title()}: {value}")
         print('-' * 50)
 
-    def is_reach_out_needed(self, status_days_array):
-        days_to_next_contact = status_days_array.get(self.status)
-        if days_to_next_contact is None:
-            print(f"Status '{self.status}' not found in status_days_array, skipping {self.name}")
-            return False
+    def is_valid_contact(self) -> bool:
+        # Check that we have full name and company domain
+        # AND that we don't already have a work email
+        return (
+            bool(self.full_name) and 
+            bool(self.company_domain) and 
+            bool(self.work_email) and not self.draft_email
+        )
+    def to_dict(self):
+        """
+        Convert contact to dictionary format for easy export.
+        """
+        return vars(self)
 
-        if days_to_next_contact == -1:
-            return False
-
-        if not self.date_last_contacted:
-            print(f"No last contacted date for {self.name}, considering for follow-up.")
-            return True
-
-        try:
-            last_contacted_date = parse(self.date_last_contacted).date()
-        except ValueError:
-            print(f"Error parsing date for {self.name}")
-            return False
-
-        days_since_contact = (datetime.now().date() - last_contacted_date).days
-
-        if days_since_contact >= days_to_next_contact:
-            return True
-        else:
-            print(f"{self.name} was contacted {days_since_contact} days ago. No follow-up needed yet.")
-            return False
+    def to_list(self):
+        """
+        Convert contact to list format for sheet updates.
+        Ensures attributes are in the same order as sheet headers.
+        """
+        return [
+            self.match,
+            self.full_name,
+            self.job_title,
+            self.location,
+            self.company_domain,
+            self.company_name,
+            self.LinkedIn,
+            self.work_email,
+            self.draft_email
+        ]

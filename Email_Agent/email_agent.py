@@ -1,12 +1,8 @@
-from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain.schema.output_parser import StrOutputParser
 from langchain.schema import HumanMessage
 from secrets_ret import get_secret
 from contacts import Contact
-from sender import Sender
-from langchain.chains import LLMChain
-
 
 class EmailAgent:
     def __init__(self, contact: Contact, sender: Sender):
@@ -240,14 +236,12 @@ class EmailAgent:
         return self.context
 
 # Example usage:
-# variables = ["sender", "receiver", "context", "tone"]
-# template = "Draft a {tone} email from {sender} to {receiver} regarding {context}."
-# email_agent = EmailAgent(variables, template)
-# draft = email_agent.draft_email(sender="John Doe", receiver="Jane Smith", context="project proposal", tone="professional")
-# improved_draft = email_agent.improve_email(draft)
-# print(improved_draft)
-
-
-
-
-
+# agent = EmailAgent()
+# raw_context = "John Doe has 15 years of experience in automotive manufacturing, specializing in lean production methods. He led a team that reduced production costs by 30% at Tesla."
+# person_name = "John Doe"
+# company_name = "Tesla"
+# experiences, email = agent.process_contact(person_name, company_name, raw_context)
+# print("Extracted Experiences:")
+# print(experiences)
+# print("\nDraft Email:")
+# print(email)
