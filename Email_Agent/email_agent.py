@@ -43,10 +43,11 @@ class EmailAgent:
 
             Hello [Insert First Name],
              
+            I am a current student researching the packaging industry, and I have spoken with 20+ companies about the customers they are losing due to poor data management in their CRMs.
 
-            I am a current student researching the logistics/distribution industry, and have already spoken with 20+ companies about the challenges of streamling communication between customers and suppliers.
-
-            Would you or someone you know at [Insert Current Company Name] be willing to jump on the phone for 15 minutes to enhance our research? I think [Pithy explanation of why company's work would give unique insights into our research]. 
+            As I continue to refine my research and here from a diverse set of companies, I think [Pithy explanation of why company's work would give unique insights into our research]. 
+             
+            Would you be willing to jump on the phone for 15 minutes to share your insights?
              
             Furthermore, I am happy to share our findings so far from our research so far, and later follow up with our findings at the conclusion of the research.
              
@@ -57,6 +58,7 @@ class EmailAgent:
              
              Please use the following information to help with the pithy explanation. At max only refrence 2 experiences: \n\n{experiences}
              Please ensure the last sentence of every email contains "would give unique insights into our research. ".
+             Write as if you are very familiar with the industry; however, please keep the tone more casual.
              One example of how this communication is done well is:
 
              Hello!
