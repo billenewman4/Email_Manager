@@ -21,7 +21,7 @@ from contacts import Contact
 SPREADSHEET_ID = '1xyGHQBRn5dfFG3utdAifs2ubMJtolVK9Qoy9YJGoheg'
 RANGE_NAME = 'Sheet1!A1:I'
 
-def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int = 4 ) -> List[Contact]:
+def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int = 400 ) -> List[Contact]:
     """
     Read contacts from Google Sheets and return as Contact objects.
     
@@ -76,8 +76,17 @@ def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int =
             # Create dictionary with header keys and row values
             row_data = dict(zip(headers, padded_row))
             
+            # Debug print raw data
+            print(f"\nRaw data for {row_data.get('Full Name')}:")
+            print(f"Draft Email column raw value: '{row_data.get('draft_email')}'")
+            print(f"Row data: {row_data}")
+            
             # Create Contact object
             contact = Contact(row_data)
+            
+            # Debug print contact object
+            print(f"Contact object draft_email: '{contact.draft_email}'")
+            print(f"Is valid: {contact.is_valid_contact()}")
             
             # Only add valid contacts (validation happens in is_valid_contact())
             if contact.is_valid_contact():
@@ -289,13 +298,17 @@ async def process_all_contacts(contacts: List[Contact]):
     """
     Process contacts concurrently in smaller batches to manage API rate limits
     """
+    # Filter invalid contacts BEFORE processing
+    valid_contacts = [contact for contact in contacts if contact.is_valid_contact()]
+    print(f"Filtered out {len(contacts) - len(valid_contacts)} contacts that didn't meet validation criteria")
+    
     email_agent = EmailAgent()
     results = []
     batch_size = 10  # Adjust this number based on API limits
     
-    # Process contacts in batches
-    for i in range(0, len(contacts), batch_size):
-        batch = contacts[i:i + batch_size]
+    # Process only valid contacts in batches
+    for i in range(0, len(valid_contacts), batch_size):
+        batch = valid_contacts[i:i + batch_size]
         print(f"\nProcessing batch of {len(batch)} contacts...")
         
         # Create tasks for the batch

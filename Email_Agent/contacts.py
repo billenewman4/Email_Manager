@@ -12,20 +12,21 @@ class Contact:
         self.company_name = data.get('Company Name')
         self.LinkedIn = data.get('LinkedIn')
         self.work_email = data.get('Work Email')
-        self.draft_email = data.get('Draft Email')
+        self.draft_email = data.get('draft_email', '')
 
     def print_properties(self):
         for key, value in self.__dict__.items():
             print(f"{key.replace('_', ' ').title()}: {value}")
         print('-' * 50)
 
-    def is_valid_contact(self):
-        """
-        Check if this is a valid contact with required fields and no draft email.
-        """
-        required_fields = ['full_name', 'company_domain','work_email']
-        return all(getattr(self, field) for field in required_fields) and not self.draft_email
-
+    def is_valid_contact(self) -> bool:
+        # Check that we have full name and company domain
+        # AND that we don't already have a work email
+        return (
+            bool(self.full_name) and 
+            bool(self.company_domain) and 
+            bool(self.work_email) and not self.draft_email
+        )
     def to_dict(self):
         """
         Convert contact to dictionary format for easy export.
