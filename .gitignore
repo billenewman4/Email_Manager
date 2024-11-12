@@ -41,3 +41,6 @@ secrets.yml
 .env
 .vscode/
 .idea/
+
+# Ignore __pycache__ directories
+__pycache__/
