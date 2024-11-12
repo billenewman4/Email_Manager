@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Email - NetworkPro</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Bar (same as dashboard) -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">NetworkPro</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <span class="nav-link">Welcome, {{ current_user.first_name }}</span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Email Generation Form -->
+    <div class="container py-5">
+        <h1 class="mb-4">Generate Networking Email</h1>
+        
+        <div class="card">
+            <div class="card-body">
+                <form id="emailForm">
+                    <div class="mb-3">
+                        <label for="contactName" class="form-label">Contact Name</label>
+                        <input type="text" class="form-control" id="contactName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="contactCompany" class="form-label">Contact Company</label>
+                        <input type="text" class="form-control" id="contactCompany" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="additionalContext" class="form-label">Additional Context</label>
+                        <textarea class="form-control" id="additionalContext" rows="4" placeholder="Add any relevant information about the contact or company that could help personalize the email..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate Email</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email Result Modal -->
+    <div class="modal fade" id="emailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Generated Email Draft</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="emailContent" class="bg-dark text-light p-3" style="white-space: pre-wrap;"></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="copyEmail()">Copy to Clipboard</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add this right after your form's submit button -->
+    <div id="loadingSpinner" class="d-none text-center mt-3">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Generating email... This may take a few moments.</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('emailForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Show loading spinner
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            submitButton.disabled = true;
+            loadingSpinner.classList.remove('d-none');
+            
+            const requestData = {
+                user_info: {
+                    name: {{ current_user.name | tojson | safe }},
+                    resume_content: {{ current_user.resume_content | tojson | safe }},
+                    career_interest: {{ current_user.career_interest | tojson | safe }},
+                    key_accomplishments: {{ current_user.get_key_accomplishments() | tojson | safe }}
+                },
+                contact_info: {
+                    name: document.getElementById('contactName').value,
+                    company: document.getElementById('contactCompany').value,
+                    context: document.getElementById('additionalContext').value
+                },
+                user_email: {{ current_user.email | tojson | safe }}
+            };
+
+            try {
+                // First, generate the email
+                const response = await fetch('/generate-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const data = await response.json();
+                
+                if (data.email_draft) {
+                    // Show the generated email
+                    document.getElementById('emailContent').textContent = data.email_draft;
+                    new bootstrap.Modal(document.getElementById('emailModal')).show();
+                    
+                    // Automatically send the email using user's email
+                    const sendResponse = await fetch('/send-email', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            recipientEmail: requestData.user_email,
+                            emailDraft: data.email_draft
+                        })
+                    });
+
+                    const sendData = await sendResponse.json();
+                    
+                    if (sendData.success) {
+                        // Show success message for both generation and sending
+                        const successMessage = document.createElement('div');
+                        successMessage.className = 'alert alert-success mt-3';
+                        successMessage.textContent = 'Email generated and sent successfully!';
+                        document.getElementById('emailForm').appendChild(successMessage);
+                        
+                        setTimeout(() => {
+                            successMessage.remove();
+                        }, 3000);
+                    } else {
+                        alert('Error sending email: ' + sendData.message);
+                    }
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error processing email. Please try again.');
+                console.error('Error:', error);
+            } finally {
+                // Hide loading spinner and re-enable button
+                submitButton.disabled = false;
+                loadingSpinner.classList.add('d-none');
+            }
+        });
+
+        function copyEmail() {
+            const emailContent = document.getElementById('emailContent').textContent;
+            navigator.clipboard.writeText(emailContent)
+                .then(() => alert('Email copied to clipboard!'))
+                .catch(err => alert('Error copying email: ' + err));
+        }
+    </script>
+</body>
+</html> 

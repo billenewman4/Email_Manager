@@ -1,7 +1,7 @@
 from email_agent import EmailAgent
 from contacts import Contact
 from sender import Sender
-from secrets import get_secret
+from secrets_ret import get_secret
 import requests
 import json
 from web_agent import tavily_context_search

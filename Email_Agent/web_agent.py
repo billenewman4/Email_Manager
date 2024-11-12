@@ -1,6 +1,6 @@
 import os
 import json
-from secrets import get_secret
+from secrets_ret import get_secret
 from tavily import TavilyClient
 
 # Retrieve Tavily API key

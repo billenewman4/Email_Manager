@@ -35,13 +35,45 @@ if (emailForm) {
 }
 
 function submitEmail() {
-    const email = emailInput.value;
+    // Validate required fields before submission
+    const requiredFields = ['email', 'firstName', 'lastName'];
+    let hasError = false;
+    
+    requiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field.value.trim()) {
+            field.classList.add('is-invalid');
+            hasError = true;
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    });
+    
+    if (hasError) {
+        return;
+    }
+
+    const formData = {
+        email: emailInput.value.trim(),
+        first_name: document.getElementById('firstName').value.trim(),
+        last_name: document.getElementById('lastName').value.trim(),
+        company: document.getElementById('company').value.trim(),
+        job_title: document.getElementById('jobTitle').value.trim(),
+        linkedin_url: document.getElementById('linkedinUrl').value.trim()
+    };
+
+    // Show loading state
+    const submitButton = emailForm.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.textContent;
+    submitButton.disabled = true;
+    submitButton.textContent = 'Submitting...';
+
     fetch('/submit-email', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: email }),
+        body: JSON.stringify(formData),
     })
     .then(response => response.json())
     .then(data => {
@@ -56,7 +88,16 @@ function submitEmail() {
     })
     .catch((error) => {
         console.error('Error:', error);
-        alert(error.message || 'An error occurred. Please try again.');
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'alert alert-danger mt-3';
+        errorMessage.textContent = error.message || 'An error occurred. Please try again.';
+        emailForm.appendChild(errorMessage);
+        setTimeout(() => errorMessage.remove(), 5000);
+    })
+    .finally(() => {
+        // Reset button state
+        submitButton.disabled = false;
+        submitButton.textContent = originalButtonText;
     });
 }
 
@@ -115,3 +156,4 @@ if (popupModal) {
         }
     });
 }
+

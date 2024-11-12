@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - NetworkPro</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">NetworkPro</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <span class="nav-link">Welcome, {{ current_user.first_name }}</span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Dashboard Content -->
+    <div class="container py-5">
+        <h1 class="mb-4">Dashboard</h1>
+        
+        <!-- User Profile Section -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="card-title">Your Profile</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Name:</strong> {{ current_user.first_name }} {{ current_user.last_name }}</p>
+                        <p><strong>Email:</strong> {{ current_user.email }}</p>
+                        {% if current_user.company %}
+                        <p><strong>Company:</strong> {{ current_user.company }}</p>
+                        {% endif %}
+                        {% if current_user.job_title %}
+                        <p><strong>Job Title:</strong> {{ current_user.job_title }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions Section -->
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h3 class="card-title">Generate Email</h3>
+                        <p class="card-text">Create a new networking email</p>
+                        <button class="btn btn-primary" onclick="window.location.href='/generate-email'">Generate</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h3 class="card-title">View History</h3>
+                        <p class="card-text">See your previous emails</p>
+                        <button class="btn btn-primary" onclick="window.location.href='/history'">View</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h3 class="card-title">Settings</h3>
+                        <p class="card-text">Manage your account settings</p>
+                        <button class="btn btn-primary" onclick="window.location.href='/settings'">Manage</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container text-center">
+            <p>&copy; 2023 NetworkPro. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
