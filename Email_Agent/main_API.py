@@ -26,9 +26,6 @@ async def generate_email(request_data: dict):
     print(f"Contact Name: {request_data['contact_info']['name']}")
     print(f"Company: {request_data['contact_info']['company']}")
 
-    return {
-        "email_draft": "This is a test email draft."
-    }
     try:
         # Initialize LLM
         openai_api_key = get_secret("OpenAPI_KEY")
