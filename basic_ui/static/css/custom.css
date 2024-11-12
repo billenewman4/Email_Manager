@@ -134,3 +134,26 @@ footer {
 html {
   scroll-behavior: smooth;
 }
+
+.primary-button {
+    background-color: #0056b3;  /* Darker blue */
+    color: white;
+    padding: 15px 30px;  /* Increased padding */
+    border: none;
+    border-radius: 5px;
+    font-size: 18px;  /* Larger font */
+    font-weight: 600;  /* Bolder text */
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.primary-button:hover {
+    background-color: #003d82;  /* Even darker blue on hover */
+}
+
+.button-container {
+    display: flex;
+    gap: 20px;  /* Space between buttons */
+    justify-content: center;
+    margin: 20px 0;
+}

@@ -2,7 +2,7 @@ from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain.schema.output_parser import StrOutputParser
 from langchain.schema import HumanMessage
-from secrets import get_secret
+from secrets_ret import get_secret
 from contacts import Contact
 from sender import Sender
 from langchain.chains import LLMChain
@@ -18,7 +18,7 @@ class EmailAgent:
 
     def _create_llm(self):
         openai_api_key = get_secret("OpenAPI_KEY")
-        return ChatOpenAI(temperature=0.7, model="gpt-4", openai_api_key=openai_api_key)
+        return ChatOpenAI(temperature=0.7, model="gpt-4o-mini", openai_api_key=openai_api_key)
 
     def extract_relevant_content(self, raw_context):
         template = """

@@ -17,7 +17,11 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <!-- Navigation links removed as per manager's request -->
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/check">Check Database</a>
+                    </li>
+                </ul>
             </div>
         </div>
     </nav>
@@ -26,7 +30,10 @@
         <div class="container">
             <h1 class="display-4 animate__animated animate__fadeInUp">Supercharge Your Networking</h1>
             <p class="lead animate__animated animate__fadeInUp">Automate your outreach and grow your professional network effortlessly</p>
-            <a href="#" class="btn btn-light btn-lg mt-3 animate__animated animate__fadeInUp" data-bs-toggle="modal" data-bs-target="#popupModal" data-section="get-started">Get Started</a>
+            <div class="button-container">
+                <button onclick="window.location.href='/signup'" class="primary-button">Sign Up</button>
+                <button onclick="window.location.href='/login'" class="primary-button">Log In</button>
+            </div>
         </div>
     </header>
 
@@ -67,13 +74,6 @@
         </section>
     </main>
 
-    <section id="cta" class="text-white text-center py-5">
-        <div class="container">
-            <h2 class="mb-4">Ready to Transform Your Networking?</h2>
-            <a href="#" class="btn btn-light btn-lg animate__animated animate__pulse" data-bs-toggle="modal" data-bs-target="#popupModal" data-section="free-trial">Start Your Free Trial</a>
-        </div>
-    </section>
-
     <footer class="bg-dark text-white py-4">
         <div class="container text-center">
             <p>&copy; 2023 NetworkPro. All rights reserved.</p>
@@ -96,6 +96,26 @@
                             <div class="invalid-feedback">
                                 Please enter a valid email address.
                             </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="firstName">
+                        </div>
+                        <div class="mb-3">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="lastName">
+                        </div>
+                        <div class="mb-3">
+                            <label for="company" class="form-label">Company</label>
+                            <input type="text" class="form-control" id="company">
+                        </div>
+                        <div class="mb-3">
+                            <label for="jobTitle" class="form-label">Job Title</label>
+                            <input type="text" class="form-control" id="jobTitle">
+                        </div>
+                        <div class="mb-3">
+                            <label for="linkedinUrl" class="form-label">LinkedIn URL</label>
+                            <input type="url" class="form-control" id="linkedinUrl">
                         </div>
                         <button type="submit" class="btn btn-primary">Subscribe</button>
                     </form>
