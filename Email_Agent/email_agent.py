@@ -42,14 +42,11 @@ class EmailAgent:
 
 
             Hello [Insert First Name],
-             
 
-            I am a current student researching the logistics/distribution industry, and have already spoken with 20+ companies about the challenges of streamling communication between customers and suppliers.
+            I am a current student at Harvard studying the manufacturing/distribution industry, specifically, how manufacturing companies can better optimize communication and coordination with their customers.
 
-            Would you or someone you know at [Insert Current Company Name] be willing to jump on the phone for 15 minutes to enhance our research? I think [Pithy explanation of why company's work would give unique insights into our research]. 
-             
-            Furthermore, I am happy to share our findings so far from our research so far, and later follow up with our findings at the conclusion of the research.
-             
+            I was curious if you or someone you know at [Insert Current Company Name] would be willing to jump on the phone for 15 minutes to enhance our research? I think [Pithy explanation of why company's work would give unique insights into our research]. 
+                          
             Hoping to hear from you soon!
 
             Best,
@@ -57,13 +54,15 @@ class EmailAgent:
              
              Please use the following information to help with the pithy explanation. At max only refrence 2 experiences: \n\n{experiences}
              Please ensure the last sentence of every email contains "would give unique insights into our research. ".
+
+             Please use {name} and {company} in the email.
              One example of how this communication is done well is:
 
-             Hello!
+             Hello {name}!
 
             I am a current student at Harvard studying the manufacturing industry, specifically, how manufacturing companies can better optimize communication and coordination with their customers. 
 
-            I was curious if someone at Kontrast 4d would be willing to talk with me for 15 minutes? I think your high-mix low volume approach would give unique insights into our research. . 
+            I was curious if someone at {company} would be willing to talk with me for 15 minutes? I think your high-mix low volume approach would give unique insights into our research. . 
 
             Bill
              

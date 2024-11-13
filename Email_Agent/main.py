@@ -21,7 +21,7 @@ from contacts import Contact
 SPREADSHEET_ID = '1xyGHQBRn5dfFG3utdAifs2ubMJtolVK9Qoy9YJGoheg'
 RANGE_NAME = 'Sheet1!A1:I'
 
-def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int = 4 ) -> List[Contact]:
+def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int = 100 ) -> List[Contact]:
     """
     Read contacts from Google Sheets and return as Contact objects.
     
@@ -69,7 +69,11 @@ def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int =
         
         # Convert rows to Contact objects
         contacts = []
-        for row in values[1:limit+1]:  # Skip header row and respect limit
+        processed = 0
+        row_index = 1  # Start after header
+
+        while processed < limit and row_index < len(values):
+            row = values[row_index]
             # Pad the row with empty strings if needed
             padded_row = row + [''] * (len(headers) - len(row))
             
@@ -79,9 +83,12 @@ def read_contacts_from_sheets(spreadsheet_id: str, range_name: str, limit: int =
             # Create Contact object
             contact = Contact(row_data)
             
-            # Only add valid contacts (validation happens in is_valid_contact())
+            # Only add valid contacts and increment counter when we actually append
             if contact.is_valid_contact():
                 contacts.append(contact)
+                processed += 1
+            
+            row_index += 1
         
         print(f"Successfully read {len(contacts)} contacts from Google Sheets")
         return contacts
@@ -291,7 +298,7 @@ async def process_all_contacts(contacts: List[Contact]):
     """
     email_agent = EmailAgent()
     results = []
-    batch_size = 10  # Adjust this number based on API limits
+    batch_size = 5  # Adjust this number based on API limits
     
     # Process contacts in batches
     for i in range(0, len(contacts), batch_size):
