@@ -87,15 +87,12 @@ class EmailAgent:
                 "context": contact.context
             })
             experiences = experience_response.get('text', '')
-            print(f"contact.context is type: {type(contact.context)}")
-            print(f"experiences is type: {type(experiences)}")
             contact.context += experiences
-            print("This is not the prpoblem!!!!!!!")
 
             # Run the email chain
             email_response = await self.email_chain.ainvoke({
                 "name": contact.full_name,
-                "company": contact.company_domain,
+                "company": contact.company_name,
                 "experiences": experiences
             })
             email_body = email_response.get('text', '')

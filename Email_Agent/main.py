@@ -230,7 +230,7 @@ async def process_single_contact(contact: Contact, email_agent: EmailAgent) -> C
             'company_domain': contact.company_domain,
             'job_title': contact.job_title,
             'LinkedIn': contact.LinkedIn,
-            'company': contact.company_domain.split('.')[0] if contact.company_domain else ''
+            'company': contact.company_name
         })
         print(f"Web search complete")
         contact.context = str(web_context.get('company_info', '') + web_context.get('person_info', ''))
