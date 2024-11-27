@@ -21,6 +21,9 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 
 app = Flask(__name__)
+app.static_folder = 'static'
+app.static_url_path = '/static'
+
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "a secret key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///networkpro.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -372,6 +375,14 @@ def send_email():
     except Exception as e:
         logging.error(f"Unexpected error: {str(e)}")
         return jsonify({'error': f'Failed to send email: {str(e)}'}), 500
+
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    try:
+        return app.send_static_file(filename)
+    except Exception as e:
+        app.logger.error(f"Error serving static file {filename}: {str(e)}")
+        return '', 404
 
 if __name__ == '__main__':
     app.run()
