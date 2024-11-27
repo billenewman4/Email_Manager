@@ -223,12 +223,12 @@ def check_page():
 @app.route('/check-db')
 def check_db():
     try:
-        # Initialize db_data dictionary
-        db_data = {}  # Add this line
-        
-        # Call the email generation API
+        db_data = {}
+        # Instead of making a local request, either:
+        # 1. Use an environment variable for the API endpoint
+        api_url = os.environ.get('EMAIL_API_URL', 'https://your-api-url.com/generate-email')
         try:
-            response = requests.post('http://localhost:8002/generate-email')
+            response = requests.post(api_url)
             response.raise_for_status()
             email_data = response.json()
             db_data['generated_email'] = email_data.get('email_draft')
