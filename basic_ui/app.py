@@ -15,6 +15,8 @@ from docx import Document
 import tempfile
 import logging
 
+logging.basicConfig(level=logging.INFO)
+
 class Base(DeclarativeBase):
     pass
 
@@ -382,7 +384,18 @@ def serve_static(filename):
         return app.send_static_file(filename)
     except Exception as e:
         app.logger.error(f"Error serving static file {filename}: {str(e)}")
-        return '', 404
+        return jsonify({
+            "error": "Failed to serve static file",
+            "details": str(e)
+        }), 500
+
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f'Server Error: {error}')
+    return jsonify({
+        "error": "Internal Server Error",
+        "details": str(error)
+    }), 500
 
 if __name__ == '__main__':
     app.run()
