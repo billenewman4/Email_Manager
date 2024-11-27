@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, redirect
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -17,6 +18,8 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
+load_dotenv()
+
 class Base(DeclarativeBase):
     pass
 
@@ -27,7 +30,7 @@ app.static_folder = 'static'
 app.static_url_path = '/static'
 
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "a secret key"
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///networkpro.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -45,7 +48,7 @@ class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
     email = Column(String(120), unique=True, nullable=False)
-    password_hash = Column(String(128), nullable=False)
+    password_hash = Column(String(512), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
     email_verified = Column(Boolean, default=False)
@@ -390,10 +393,10 @@ def serve_static(filename):
         }), 500
 
 @app.errorhandler(500)
-def internal_error(error):
-    app.logger.error(f'Server Error: {error}')
+def handle_error(error):
+    app.logger.error(f"Internal error: {error}")
     return jsonify({
-        "error": "Internal Server Error",
+        "error": "Internal server error",
         "details": str(error)
     }), 500
 
