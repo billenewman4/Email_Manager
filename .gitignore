@@ -56,6 +56,3 @@ __pycache__/
 
 # Ignore CSV files
 *.csv
-
-#igner customeroutreach
-*.json
