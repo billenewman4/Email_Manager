@@ -53,7 +53,7 @@ async def generate_email(request_data: dict):
 
         # Search web for context
         web_context = {
-            'company_info': tavily_context_search(contact.company),
+            'company_info': tavily_context_search(contact.company_name),
             'person_info': tavily_context_search(contact.name)
         }
         

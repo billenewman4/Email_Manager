@@ -3,6 +3,7 @@ from langchain.schema.output_parser import StrOutputParser
 from langchain.schema import HumanMessage
 from secrets_ret import get_secret
 from contacts import Contact
+from sender import Sender
 
 class EmailAgent:
     def __init__(self, contact: Contact, sender: Sender):
