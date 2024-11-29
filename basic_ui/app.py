@@ -277,12 +277,18 @@ def generate_email():
         # Add logging before the API call
         logging.info(f"Generating email with request data: {request_data}")
         
+        # Update this URL to your Cloud Run endpoint
+        CLOUD_RUN_URL = "https://email-agent-1085470808659.us-west2.run.app/generate-email"
+        
         try:
             # Call the email generation API
             response = requests.post(
-                'http://localhost:8002/generate-email',
+                CLOUD_RUN_URL,  # Use Cloud Run URL instead of localhost
                 json=request_data,
-                timeout=360
+                timeout=360,
+                headers={
+                    'Content-Type': 'application/json'
+                }
             )
             
             logging.info(f"Received response from API with status code: {response.status_code}")
@@ -324,7 +330,7 @@ def generate_email():
         app.logger.error(f"Error: {str(e)}")
         return jsonify({
             "success": False,
-            "message": "An unexpected error occurred"
+            "message": f"An unexpected error occurred: {str(e)}"
         }), 500
 
 @app.route('/dashboard')
