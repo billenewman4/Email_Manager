@@ -8,13 +8,17 @@ from langchain_openai import ChatOpenAI
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import os
 
 app = FastAPI()
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5000"],  # Add your frontend URL
+    allow_origins=[
+        "http://localhost:5000",  # For local development
+        "https://email-manager-lilac.vercel.app"  # For production
+    ],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
@@ -44,17 +48,19 @@ async def generate_email(request_data: dict):
         # Create contact object from contact_info
         contact_info = request_data['contact_info']
         contact = Contact({
-            'name': contact_info['name'],
-            'company': contact_info['company']
+            'Full Name': contact_info['name'],
+            'Company Name': contact_info['company']
         })
 
         # Create EmailAgent
         email_agent = EmailAgent(contact, sender)
 
         # Search web for context
+        print("-" * 50)
+        print(f"Searching web for context for {contact.full_name} and {contact.company_name}")
         web_context = {
             'company_info': tavily_context_search(contact.company_name),
-            'person_info': tavily_context_search(contact.name)
+            'person_info': tavily_context_search(contact.full_name)
         }
         
         # Combine web context with user-provided context
@@ -82,4 +88,5 @@ async def generate_email(request_data: dict):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+    port = int(os.getenv("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)

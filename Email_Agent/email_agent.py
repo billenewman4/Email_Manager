@@ -1,6 +1,8 @@
 from langchain_openai import ChatOpenAI
 from langchain.schema.output_parser import StrOutputParser
 from langchain.schema import HumanMessage
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import PromptTemplate
 from secrets_ret import get_secret
 from contacts import Contact
 from sender import Sender
@@ -37,8 +39,8 @@ class EmailAgent:
         )
         formatted_prompt = prompt.format(
             raw_context=raw_context, 
-            person_name=self.contact.name, 
-            company_name=self.contact.company
+            person_name=self.contact.full_name, 
+            company_name=self.contact.company_name
         )
         messages = [HumanMessage(content=formatted_prompt)]
         return self.llm.invoke(messages).content
@@ -87,11 +89,11 @@ class EmailAgent:
         print("Sending request to LLM...")
         self.latest_draft = chain.invoke({
             "tone": tone,
-            "receiver_name": self.contact.name,
-            "receiver_company": self.contact.company,
+            "receiver_name": self.contact.full_name,
+            "receiver_company": self.contact.company_name,
             "receiver_context": self.context,
             "sender_info": sender_info,
-            "email_purpose": f"reaching out as a student to discuss {self.contact.name}'s work at {self.contact.company}"
+            "email_purpose": f"reaching out as a student to discuss {self.contact.full_name}'s work at {self.contact.company_name}"
         })
         print("Received response from LLM")
         print("Draft email:", self.latest_draft)

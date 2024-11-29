@@ -4,8 +4,18 @@ from secrets_ret import get_secret
 from tavily import TavilyClient
 import asyncio
 import aiohttp
+import logging
+
+# Configure logging to write to stderr (Cloud Run captures stderr)
+logging.basicConfig(
+    stream=sys.stderr,
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Retrieve Tavily API key
+logger.debug("Retrieving Tavily API key")
 tavily_api_key = get_secret("TAVILY_API_KEY")
 
 if not tavily_api_key:
