@@ -34,7 +34,7 @@
                 <div class="card">
                     <div class="card-body">
                         <h2 class="text-center mb-4">Create Your Account</h2>
-                        <form id="signupForm" enctype="multipart/form-data">
+                        <form id="signup-form">
                             <div class="mb-3">
                                 <label for="email" class="form-label">Email address*</label>
                                 <input type="email" class="form-control" id="email" name="email" required>
@@ -53,9 +53,9 @@
                             </div>
                             <div class="mb-3">
                                 <label for="resume" class="form-label">Resume (PDF or Word document)*</label>
-                                <input type="file" class="form-control" id="resume" name="resume" 
-                                       accept=".pdf,.doc,.docx" required>
-                                <div class="form-text">Maximum file size: 16MB</div>
+                                <textarea class="form-control" id="resume" name="resume_text" 
+                                          rows="10" required
+                                          placeholder="Paste your resume text here..."></textarea>
                             </div>
                             <div class="mb-3">
                                 <label for="careerInterest" class="form-label">Career Interests*</label>
@@ -113,7 +113,7 @@
             container.appendChild(newField);
         }
 
-        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             // Validate passwords match
@@ -135,7 +135,7 @@
             formData.append('name', document.getElementById('name').value);
             formData.append('career_interest', document.getElementById('careerInterest').value);
             formData.append('key_accomplishments', JSON.stringify(accomplishments));
-            formData.append('resume', document.getElementById('resume').files[0]);
+            formData.append('resume_text', document.getElementById('resume').value);
 
             try {
                 const response = await fetch('/signup', {
