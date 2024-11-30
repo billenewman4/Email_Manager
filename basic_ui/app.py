@@ -53,12 +53,11 @@ class User(UserMixin, db.Model):
     is_active = Column(Boolean, default=True)
     email_verified = Column(Boolean, default=False)
     name = Column(String(100))
-    resume_filename = Column(String(255))  # Store the filename
     resume_content = Column(Text)          # Store the extracted text content
-    resume_file_type = Column(String(10))  # Store file type (pdf/doc/docx)
     career_interest = Column(String(1000))
     key_accomplishments = Column(String(2000))
     relevant_content = Column(String(2000))
+    resume_text = Column(Text)  # New field
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -76,35 +75,13 @@ class User(UserMixin, db.Model):
             return json.loads(self.key_accomplishments)
         return []
 
-    def save_resume(self, file):
-        """Handle resume file upload and text extraction"""
+    def save_resume(self, resume_text):
+        """Save resume text directly to database"""
         try:
-            # Generate secure filename
-            filename = secure_filename(file.filename)
-            file_ext = filename.rsplit('.', 1)[1].lower()
-            
-            if file_ext not in ['pdf', 'doc', 'docx']:
-                raise ValueError("Invalid file type. Only PDF and Word documents are allowed.")
-            
-            # Save file to disk
-            upload_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(upload_path)
-            
-            # Extract text from file
-            if file_ext == 'pdf':
-                text = extract_text_from_pdf(upload_path)
-            else:
-                text = extract_text_from_word(upload_path)
-            
-            # Update user record
-            self.resume_filename = filename
-            self.resume_content = text
-            self.resume_file_type = file_ext
-            
+            self.resume_content = resume_text
             return True
-            
         except Exception as e:
-            app.logger.error(f"Error saving resume: {str(e)}")
+            app.logger.error(f"Error saving resume text: {str(e)}")
             return False
 
 class EmailHistory(db.Model):
@@ -153,44 +130,46 @@ def signup():
 
     if request.method == 'POST':
         try:
-            # Handle file upload
-            if 'resume' not in request.files:
-                return jsonify({"success": False, "message": "No resume file provided"}), 400
-                
-            resume_file = request.files['resume']
-            if resume_file.filename == '':
-                return jsonify({"success": False, "message": "No selected file"}), 400
-
-            # Get other form data
             data = request.form
-            email = data.get('email')
-            password = data.get('password')
+            email = data.get('email', '').strip()
+            password = data.get('password', '').strip()
+            name = data.get('name', '').strip()
+            career_interest = data.get('career_interest', '').strip()
+            resume_text = data.get('resume_text', '').strip()  # New field
 
-            if not email or not is_valid_email(email):
-                return jsonify({"success": False, "message": "Invalid email address"}), 400
+            # Validate required fields
+            if not all([email, password, name, resume_text]):  # Added resume_text to required fields
+                return jsonify({
+                    "success": False, 
+                    "message": "Please fill in all required fields"
+                }), 400
 
             # Create new user
             new_user = User(
                 email=email,
-                name=data.get('name'),
-                career_interest=data.get('career_interest')
+                name=name,
+                career_interest=career_interest,
+                resume_text=resume_text  # Save the text directly
             )
             new_user.set_password(password)
             
-            # Handle resume upload
-            if not new_user.save_resume(resume_file):
-                return jsonify({"success": False, "message": "Error processing resume file"}), 400
-
             db.session.add(new_user)
             db.session.commit()
 
             login_user(new_user)
-            return jsonify({"success": True, "message": "Account created successfully"}), 200
+            return jsonify({
+                "success": True, 
+                "message": "Account created successfully",
+                "redirect": "/dashboard"
+            }), 200
             
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Error creating user: {str(e)}")
-            return jsonify({"success": False, "message": str(e)}), 500
+            return jsonify({
+                "success": False, 
+                "message": "An unexpected error occurred. Please try again."
+            }), 500
 
     return render_template('signup.html')
 
