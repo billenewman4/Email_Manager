@@ -131,6 +131,14 @@ def signup():
     if request.method == 'POST':
         try:
             data = request.form
+            app.logger.info(f"Received signup data: {data}")
+            
+            # Log field values
+            app.logger.info(f"Email: {data.get('email')}")
+            app.logger.info(f"Name: {data.get('name')}")
+            app.logger.info(f"Career interest: {data.get('career_interest')}")
+            app.logger.info(f"Resume text length: {len(data.get('resume_text', ''))}")
+
             email = data.get('email', '').strip()
             password = data.get('password', '').strip()
             name = data.get('name', '').strip()
@@ -145,18 +153,26 @@ def signup():
                 }), 400
 
             # Create new user
+            app.logger.info("Creating new user object")
             new_user = User(
                 email=email,
                 name=name,
                 career_interest=career_interest,
                 resume_text=resume_text  # Save the text directly
             )
+            
+            app.logger.info("Setting password hash")
             new_user.set_password(password)
             
+            app.logger.info("Attempting database operations")
             db.session.add(new_user)
             db.session.commit()
+            app.logger.info("Database commit successful")
 
+            app.logger.info("Logging in new user")
             login_user(new_user)
+            app.logger.info("User logged in successfully")
+
             return jsonify({
                 "success": True, 
                 "message": "Account created successfully",
@@ -165,10 +181,12 @@ def signup():
             
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"Error creating user: {str(e)}")
+            app.logger.error(f"Error in signup: {str(e)}")
+            app.logger.error(f"Error type: {type(e)}")
+            app.logger.exception("Full traceback:")
             return jsonify({
                 "success": False, 
-                "message": "An unexpected error occurred. Please try again."
+                "message": f"An unexpected error occurred: {str(e)}"
             }), 500
 
     return render_template('signup.html')
@@ -237,55 +255,56 @@ def generate_email():
         return render_template('generate_email.html')
         
     try:
-        # Get the request data
         request_data = request.json
+        app.logger.info(f"Generate email request data: {request_data}")
         
-        # Validate required fields
         if not request_data.get('contact_info', {}).get('name'):
+            app.logger.error("Missing contact name")
             return jsonify({
                 "success": False,
                 "message": "Contact name is required"
             }), 400
             
         if not request_data.get('contact_info', {}).get('company'):
+            app.logger.error("Missing company name")
             return jsonify({
                 "success": False,
                 "message": "Contact company is required"
             }), 400
         
-        # Add logging before the API call
-        logging.info(f"Generating email with request data: {request_data}")
-        
-        # Update this URL to your Cloud Run endpoint
+        app.logger.info("Calling email generation API")
         CLOUD_RUN_URL = "https://email-agent-1085470808659.us-west2.run.app/generate-email"
         
         try:
-            # Call the email generation API
+            app.logger.info(f"Making request to: {CLOUD_RUN_URL}")
             response = requests.post(
-                CLOUD_RUN_URL,  # Use Cloud Run URL instead of localhost
+                CLOUD_RUN_URL,
                 json=request_data,
                 timeout=360,
-                headers={
-                    'Content-Type': 'application/json'
-                }
+                headers={'Content-Type': 'application/json'}
             )
             
-            logging.info(f"Received response from API with status code: {response.status_code}")
+            app.logger.info(f"API response status: {response.status_code}")
+            app.logger.info(f"API response: {response.text[:500]}...")  # Log first 500 chars
             
             response.raise_for_status()
             email_data = response.json()
-            logging.info("Successfully processed email response")
+            app.logger.info("Successfully processed email response")
+            
         except requests.exceptions.RequestException as e:
-            logging.error(f"API request failed: {str(e)}")
+            app.logger.error(f"API request failed: {str(e)}")
             return jsonify({'error': f'API request failed: {str(e)}'}), 500
+            
         except ValueError as e:
-            logging.error(f"JSON decode error: {str(e)}")
+            app.logger.error(f"JSON decode error: {str(e)}")
             return jsonify({'error': 'Invalid response format from API'}), 500
+            
         except Exception as e:
-            logging.error(f"Unexpected error: {str(e)}")
+            app.logger.error(f"Unexpected error in API call: {str(e)}")
+            app.logger.exception("Full traceback:")
             return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
-        
-        # Store the email in EmailHistory
+
+        app.logger.info("Storing email in history")
         new_email_history = EmailHistory(
             user_id=current_user.id,
             contact_name=request_data['contact_info']['name'],
@@ -295,18 +314,14 @@ def generate_email():
         
         db.session.add(new_email_history)
         db.session.commit()
+        app.logger.info("Email history stored successfully")
         
         return jsonify(email_data)
 
-            
-    except requests.RequestException as e:
-        app.logger.error(f"API Error: {str(e)}")
-        return jsonify({
-            "success": False,
-            "message": "Error connecting to email generation service. Please ensure the service is running and try again."
-        }), 500
     except Exception as e:
-        app.logger.error(f"Error: {str(e)}")
+        app.logger.error(f"Error in generate_email: {str(e)}")
+        app.logger.error(f"Error type: {type(e)}")
+        app.logger.exception("Full traceback:")
         return jsonify({
             "success": False,
             "message": f"An unexpected error occurred: {str(e)}"
