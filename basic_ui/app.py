@@ -53,11 +53,11 @@ class User(UserMixin, db.Model):
     is_active = Column(Boolean, default=True)
     email_verified = Column(Boolean, default=False)
     name = Column(String(100))
-    resume_content = Column(Text)          # Store the extracted text content
+    resume_content = Column(Text)
     career_interest = Column(String(1000))
     key_accomplishments = Column(String(2000))
     relevant_content = Column(String(2000))
-    resume_text = Column(Text)  # New field
+    resume_text = Column(Text)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

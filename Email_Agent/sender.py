@@ -13,6 +13,17 @@ class Sender:
     def process_relevant_content(self):
         """Process all sender information into relevant content"""
         print("Extracting content from resume...")
+
+        accomplishments_str = "\n- " + "\n- ".join(self.key_accomplishments)
+
+
+        self.relevant_content = self.resume + self.career_interest + accomplishments_str
+        print("\n\n\n\n\n\n\n\n")
+        print("="*100)
+        print("Content processing in test phase!")
+        print("="*100)
+        print("\n\n\n\n\n\n\n\n")
+        return self.relevant_content
         resume_content = self.extract_from_resume()
         
         print("Extracting content from career interests...")
