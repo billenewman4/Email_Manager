@@ -2,6 +2,7 @@ import sys
 from datetime import datetime
 from app import app, db, User, EmailHistory
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+import json
 
 
 def print_all_records():
@@ -52,39 +53,37 @@ def upgrade_database():
             db.create_all()
             print("New database schema created successfully!")
             
-            # Create a test user
+            # Create a test user with all fields
             test_user = User(
                 email="test@example.com",
                 name="Test User",
-                resume_filename="test.pdf",
-                resume_content="Sample content",
-                resume_file_type="pdf",
-                career_interest="Test interest"
+                resume_text="This is a sample resume text for testing.",
+                career_interest="Software Development",
+                resume_content="Detailed resume content here",
+                key_accomplishments=json.dumps(["Accomplishment 1", "Accomplishment 2"]),
+                relevant_content="Relevant experience and skills"
             )
             test_user.set_password("password123")
-            test_user.set_key_accomplishments([
-                "Test accomplishment 1",
-                "Test accomplishment 2"
-            ])
             
+            # Add test email history
             db.session.add(test_user)
             db.session.commit()
             
-            # Create a test email history record
             test_history = EmailHistory(
                 user_id=test_user.id,
                 contact_name="John Doe",
-                contact_company="Test Company",
-                email_draft="This is a test email draft..."
+                contact_company="Test Corp",
+                email_draft="Sample email draft content"
             )
             
             db.session.add(test_history)
             db.session.commit()
-            print("Test records created successfully to verify schema!")
+            
+            print("Test user and email history created successfully!")
             
     except Exception as e:
-        db.session.rollback()
         print(f"Error upgrading database: {str(e)}")
+        db.session.rollback()
 
 def main():
     with app.app_context():

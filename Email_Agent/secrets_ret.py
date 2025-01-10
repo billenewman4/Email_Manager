@@ -2,6 +2,7 @@ import os
 import sys
 from google.cloud import secretmanager
 import logging
+from dotenv import load_dotenv
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -12,20 +13,23 @@ client = secretmanager.SecretManagerServiceClient()
 # Hardcoded project ID
 PROJECT_ID = "primeval-truth-431023-f9"
 
+#Load environment variables
+load_dotenv()
+
 def get_secret(secret_name):
     logger.info(f"Attempting to retrieve secret: {secret_name}")
     
     # Check environment variables
     env_value = os.getenv(secret_name)
     if env_value:
-        logger.info(f"Found secret {secret_name} in environment variables")
+        print(f"Found secret {secret_name} in environment variables")
         return env_value
     logger.info(f"Secret {secret_name} not found in environment variables")
     
     # Try Secret Manager
     if client:
         try:
-            logger.info(f"Attempting to retrieve {secret_name} from Secret Manager")
+            print(f"Attempting to retrieve {secret_name} from Secret Manager")
             name = f"projects/{PROJECT_ID}/secrets/{secret_name}/versions/latest"
             response = client.access_secret_version(request={"name": name})
             secret_value = response.payload.data.decode('UTF-8')
