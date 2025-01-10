@@ -1,6 +1,5 @@
-import os
-import json
-from secrets_ret import get_secret
+import sys
+from .secrets_ret import get_secret
 from tavily import TavilyClient
 import asyncio
 import aiohttp
