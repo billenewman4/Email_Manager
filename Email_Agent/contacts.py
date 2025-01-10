@@ -12,19 +12,25 @@ class Contact:
         self.company_name = data.get('Company Name')
         self.LinkedIn = data.get('LinkedIn')
         self.work_email = data.get('Work Email')
-        self.draft_email = data.get('Draft Email')
+        self.draft_email = data.get('draft_email')
 
     def print_properties(self):
         for key, value in self.__dict__.items():
             print(f"{key.replace('_', ' ').title()}: {value}")
         print('-' * 50)
 
-    def is_valid_contact(self):
+    def is_valid_contact(self) -> bool:
         """
         Check if this is a valid contact with required fields and no draft email.
         """
-        required_fields = ['full_name', 'company_domain','work_email']
-        return all(getattr(self, field) for field in required_fields) and not self.draft_email
+        required_fields = ['full_name', 'company_domain', 'work_email']
+        
+        
+        # Check required fields and draft email status
+        has_required = all(getattr(self, field) for field in required_fields)
+        has_draft = bool(self.draft_email and str(self.draft_email).strip())
+        
+        return has_required and not has_draft
 
     def to_dict(self):
         """

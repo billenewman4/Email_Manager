@@ -150,15 +150,22 @@ async def search_web(contact: dict) -> dict:
         person_task = asyncio.create_task(tavily_search(person_query))
         
         # Wait for both searches to complete
-        company_info, person_info = await asyncio.gather(company_task, person_task)
+        company_results, person_results = await asyncio.gather(company_task, person_task)
+        
+        # OpenAI's maximum length with safety margin
+        MAX_PER_SECTION = 400000  # 800k total, split evenly
+
+        # Truncate and combine results
+        company_info = str(company_results[0])[:MAX_PER_SECTION] if company_results else ''
+        person_info = str(person_results[0])[:MAX_PER_SECTION] if person_results else ''
         
         # Debug print the results
         print("\n" + "="*50)
         print("Search Results:")
         print(f"Company info found: {'Yes' if company_info else 'No'}")
-        print(f"Company info length: {len(company_info) if company_info else 0}")
+        print(f"Company info length: {len(company_info)}")
         print(f"Person info found: {'Yes' if person_info else 'No'}")
-        print(f"Person info length: {len(person_info) if person_info else 0}")
+        print(f"Person info length: {len(person_info)}")
         print("="*50 + "\n")
         
         return {
@@ -292,13 +299,12 @@ def save_emails_to_csv(contacts: List[Contact]):
     except Exception as e:
         print(f"Error saving to CSV: {str(e)}")
 
-async def process_all_contacts(contacts: List[Contact]):
+async def process_all_contacts(contacts: List[Contact], batch_size: int = 5):
     """
     Process contacts concurrently in smaller batches to manage API rate limits
     """
     email_agent = EmailAgent()
     results = []
-    batch_size = 5  # Adjust this number based on API limits
     
     # Process contacts in batches
     for i in range(0, len(contacts), batch_size):
@@ -420,8 +426,17 @@ async def main():
     try:
         SPREADSHEET_ID = '1xyGHQBRn5dfFG3utdAifs2ubMJtolVK9Qoy9YJGoheg'
         
-        # Read contacts
-        contacts = read_contacts_from_sheets(SPREADSHEET_ID, RANGE_NAME)
+        # Get user inputs
+        is_test = input("Is this a test run? (y/n): ").lower() == 'y'
+        batch_size = int(input("Enter batch size (default 5): ") or 5)
+        contact_limit = int(input("Enter number of contacts to process (default 100): ") or 100)
+        
+        print(f"\nRunning in {'TEST' if is_test else 'PRODUCTION'} mode")
+        print(f"Batch size: {batch_size}")
+        print(f"Contact limit: {contact_limit}")
+        
+        # Read contacts with limit
+        contacts = read_contacts_from_sheets(SPREADSHEET_ID, RANGE_NAME, limit=contact_limit)
         
         print("\nContacts loaded:")
         for i, contact in enumerate(contacts, 1):
@@ -434,18 +449,20 @@ async def main():
         
         if contacts:
             print("\nProcessing contacts...")
-            # Wait for all contacts to be processed
-            processed_contacts = await process_all_contacts(contacts)
+            # Pass batch_size to process_all_contacts
+            processed_contacts = await process_all_contacts(contacts, batch_size)
             
             if processed_contacts:
                 # Export to CSV
                 print("\nExporting contacts to CSV...")
                 save_emails_to_csv(processed_contacts)
 
-                
-                # Update Google Sheet
-                print("\nUpdating Google Sheet...")
-                update_sheet_with_contact_info(SPREADSHEET_ID, RANGE_NAME, processed_contacts)
+                # Update Google Sheet only if not a test run
+                if not is_test:
+                    print("\nUpdating Google Sheet...")
+                    update_sheet_with_contact_info(SPREADSHEET_ID, RANGE_NAME, processed_contacts)
+                else:
+                    print("\nTest run - skipping Google Sheet update")
                 
                 print("\nProcess complete! Updated contacts:")
                 for contact in processed_contacts:

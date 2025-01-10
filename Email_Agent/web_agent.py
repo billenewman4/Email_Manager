@@ -14,7 +14,7 @@ if not tavily_api_key:
 # Initialize Tavily client
 tavily_client = TavilyClient(api_key=tavily_api_key)
 
-async def tavily_search(query, search_depth="advanced", max_results=5, include_raw_content=True):
+async def tavily_search(query, search_depth="advanced", max_results=3, include_raw_content=True):
     """
     Perform a search using Tavily API and get both search results and raw context.
     """
@@ -41,11 +41,25 @@ async def tavily_search(query, search_depth="advanced", max_results=5, include_r
         
         # If we get here, the search was successful
         results = search_response.get('results', [])
-        raw_context = str(search_response)
+        raw_context = ' '.join([r.get('raw_content', '') for r in results if r.get('raw_content')])
         
         print(f"\nSearch completed successfully")
         print(f"Found {len(results)} results")
         print(f"Raw context length: {len(raw_context)}")
+
+        print("Results")
+        print("\n\n\n\n\n\n\n\n\n\n\n")
+        print("="*50)
+        print(results)
+        print("="*50)
+        print("\n\n\n\n\n\n\n\n\n\n\n")
+
+        print("Raw Context")
+        print("\n\n\n\n\n\n\n\n\n\n\n")
+        print("="*50)
+        print(raw_context)
+        print("="*50)
+        print("\n\n\n\n\n\n\n\n\n\n\n")
         
         return results, raw_context
         

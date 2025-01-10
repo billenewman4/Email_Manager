@@ -36,36 +36,21 @@ class EmailAgent:
         
         # Initialize email chain
         email_prompt = ChatPromptTemplate.from_messages([
-            ("system", "You are an AI assistant that writes concise emails. Make sure your writing does not sound like chatGPT."),
+            ("system", "You are an AI assistant that writes concise emails. You speak the language of the industry like a 15 year veteran.Make sure your writing does not sound like chatGPT."),
             ("user", """
              Please stick to the following format only! Do not deviate from it:
 
 
             Hello [Insert First Name],
-
-            I am a current student at Harvard studying the manufacturing/distribution industry, specifically, how manufacturing companies can better optimize communication and coordination with their customers.
-
-            I was curious if you or someone you know at [Insert Current Company Name] would be willing to jump on the phone for 15 minutes to enhance our research? I think [Pithy explanation of why company's work would give unique insights into our research]. 
-                          
-            Hoping to hear from you soon!
-
+            I am a current student at HBS doing research on the [insert name of contact's industry] industry.
+            I am reaching out because I noticed [insert industry experience of contact] and thought you could be an interesting person to talk to.
+            If this sounds interesting to you, would you be willing to jump on a call sometime after 12p next week?
             Best,
             Bill
              
-             Please use the following information to help with the pithy explanation. At max only refrence 2 experiences: \n\n{experiences}
-             Please ensure the last sentence of every email contains "would give unique insights into our research. ".
-
+             Please use the following information to help with the pithy explanation. \n\n{experiences}
+             Please make sure the email does not sound like AI wrote it.
              Please use {name} and {company} in the email.
-             One example of how this communication is done well is:
-
-             Hello {name}!
-
-            I am a current student at Harvard studying the manufacturing industry, specifically, how manufacturing companies can better optimize communication and coordination with their customers. 
-
-            I was curious if someone at {company} would be willing to talk with me for 15 minutes? I think your high-mix low volume approach would give unique insights into our research. . 
-
-            Bill
-             
              
              """)
         ])
@@ -88,6 +73,7 @@ class EmailAgent:
             })
             experiences = experience_response.get('text', '')
             contact.context += experiences
+            #print(f"In email agent, contacts context: {contact.context}")
 
             # Run the email chain
             email_response = await self.email_chain.ainvoke({
@@ -116,3 +102,18 @@ class EmailAgent:
 # print(experiences)
 # print("\nDraft Email:")
 # print(email)
+
+
+#            Hello [Insert First Name],
+#
+#           My name is Bill and I am building a tool to automate data entry into CRMs like Hubspot and Salesforce for manufacturers and distributors. 
+#
+#           [Insert Pithy explanation of why company could be a good fit for the product]
+#                        
+#         Would you be willing to jump on a call sometime after 1p this week so I can learn more about how you use your CRM and what other problems you might be facing?
+#
+#           Best,
+#          Bill
+#
+#
+
