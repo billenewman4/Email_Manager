@@ -42,9 +42,13 @@ class EmailAgent:
 
 
             Hello [Insert First Name],
-            I am a current student at HBS doing research on the [insert name of contact's industry] industry.
-            I am reaching out because I noticed [insert industry experience of contact] and thought you could be an interesting person to talk to.
-            If this sounds interesting to you, would you be willing to jump on a call sometime after 12p next week?
+
+            I am a current student at HBS and have been working on a solution for the food distribution industry. Our product automates data entry into CRMs/ERPs, helping roles like yours as [insert their position at company if known, otherwise re-do the email to make sesne without it] at {company} save time, reduce manual data entry errors, and improve visibility into order statuses.
+
+            This could be particularly helpful in [explain why it could be helpful for their job given their role and responsibilities, e.g., “managing multiple accounts and ensuring timely order tracking without relying on manual updates”]. By streamlining these processes, it allows you to focus more on high-impact tasks and less on repetitive, time-consuming work.
+
+            Would you be open to answering a few questions about how your team currently handles this process? Your insights would be incredibly valuable.
+
             Best,
             Bill
              
