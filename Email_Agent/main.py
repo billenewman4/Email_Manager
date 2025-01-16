@@ -1,23 +1,23 @@
 import os
 from email_agent import EmailAgent
-from contacts import Contact
-from sender import Sender
-from secrets_ret import get_secret
+from Email_Agent.Object_Classes.contacts import Contact
+from Email_Agent.Object_Classes.sender import Sender
+from Email_Agent.tools.secrets_ret import get_secret
 import requests
 import json
-from web_agent import tavily_context_search
+from Email_Agent.Tavily.tools import tavily_context_search
 import csv
 from datetime import datetime
 import asyncio
 from typing import List
 import aiohttp
 from dataclasses import dataclass
-from web_agent import tavily_search
+from Email_Agent.Tavily.tools import tavily_search
 from functools import partial
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
-from contacts import Contact
+from Email_Agent.Object_Classes.contacts import Contact
 
 #GLobal variables
 SPREADSHEET_ID = '1xyGHQBRn5dfFG3utdAifs2ubMJtolVK9Qoy9YJGoheg'
