@@ -21,8 +21,7 @@ for logger_name in [
     logging.getLogger(logger_name).setLevel(logging.ERROR)
 
 # Local imports
-from ..tools.secrets_ret import get_secret
-from ..Search_Agent.tools import tavily_search_tool
+from ..Tools.secrets_ret import get_secret
 from ..Object_Classes.contacts import Contact
 from ..Object_Classes.sender import Sender
 from ..Drafting_Agent.agent import DraftingAgent
@@ -43,26 +42,21 @@ class EmailState(TypedDict):
     summarized_search_results: Annotated[str, operator.add]
     AgentCommands: Command
 
-def create_email_graph():
+def create_email_graph(user_type: str):
     openai_key = get_secret("OpenAPI_KEY")
     # Create system message for search agent
-    system_message = """You are an AI assistant that searches for information about people, companies, or topics.
-    This tool performs an advanced web search and returns both detailed content and context.
-    Best for: Finding professional information, company details, news, and recent updates.
-    Input should be a specific search query."""
+   
     
     # Initialize search agent with required arguments
     search_agent = SearchAgent(
-        openai_api_key=openai_key,
-        tools=[tavily_search_tool],
         worker_name="search_agent",
-        system_message=system_message
+        user_type=user_type
     )
-    supervisor_agent = SupervisorAgent(openai_api_key=openai_key) 
+    supervisor_agent = SupervisorAgent(openai_api_key=openai_key, user_type=user_type) 
     
     drafting_agent = DraftingAgent(
-        openai_api_key=openai_key,
         worker_name="drafting_agent",
+        user_type=user_type
     )
     
     # Initialize graph

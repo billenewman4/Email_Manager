@@ -1,42 +1,49 @@
-from langchain.agents import Tool
+from langchain_core.tools import tool
 from ..Tavily.tools import tavily_search_extract, tavily_search
-import asyncio
 
-def sync_tavily_search(query: str) -> str:
-    """Synchronous wrapper for tavily search."""
-    async def run_search():
-        results, raw_context = await tavily_search(query)
-        return results, raw_context
-
-    try:
-        results, raw_context = asyncio.run(run_search())
-        return f"""
-        SEARCH RESULTS:
-        {results}
+def get_search_tools(search_type: str) -> list:
+    """Returns the appropriate search tools based on the search type."""
+    
+    if search_type == "tavily":
+        @tool
+        async def search_with_context(query: str) -> dict:
+            """
+            Search the web using Tavily and return both search results and raw context.
+            
+            Args:
+                query (str): The search query to execute
+                
+            Returns:
+                dict: Contains two keys:
+                    - results: Summarized search results
+                    - raw_context: Additional context from the search
+            """
+            results, raw_context = await tavily_search(query)
+            return {
+                "results": results,
+                "raw_context": raw_context
+            }
+            
+        @tool
+        async def search_with_extraction(query: str) -> tuple:
+            """
+            Search the web using Tavily and extract relevant information.
+            
+            Args:
+                query (str): The search query to execute
+                
+            Returns:
+                tuple: (content, raw_context) where:
+                    - content: Extracted and processed content
+                    - raw_context: Raw search results for additional context
+            """
+            return await tavily_search_extract(query)
+            
+        return [search_with_context, search_with_extraction]
         
-        ADDITIONAL CONTEXT:
-        {raw_context}
-        """
-    except RuntimeError as e:
-        # Handle case where event loop is already running
-        loop = asyncio.get_event_loop()
-        results, raw_context = loop.run_until_complete(run_search())
-        return f"""
-        SEARCH RESULTS:
-        {results}
+    elif search_type == "google":
+        # Add Google search specific tools here
+        pass
         
-        ADDITIONAL CONTEXT:
-        {raw_context}
-        """
-
-# Create tool instance
-tavily_search_tool = Tool(
-    name="tavily_search",
-    func=sync_tavily_search,
-    description="""
-    Use this tool to search for information about people, companies, or topics.
-    This tool performs an advanced web search and returns both detailed content and context.
-    Best for: Finding professional information, company details, news, and recent updates.
-    Input should be a specific search query.
-    """
-)
+    else:
+        raise ValueError(f"Unsupported search type: {search_type}")

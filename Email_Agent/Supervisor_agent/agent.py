@@ -8,7 +8,7 @@ from langchain.schema.output_parser import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from ..Object_Classes.contacts import Contact
 from ..Object_Classes.sender import Sender
-
+from ..tools.secrets_ret import get_secret
 class SupervisorCommand(TypedDict):
     command: Literal["REDRAFT", "SEARCH", "END"]
     reason: str
@@ -30,49 +30,11 @@ class SupervisorAgent:
     def __init__(self, openai_api_key: str):
         self.llm = ChatOpenAI(
             temperature=0.7,
-            openai_api_key=openai_api_key, 
+            openai_api_key=get_secret("OpenAPI_KEY"), 
             model="gpt-4-0125-preview"
         )
         
-        self.evaluation_prompt = """You are a supervisor evaluating an email draft. Your job is to determine if the email needs revision because the wording is bad, needs more research (e.g., like a google search to learn more about the contact), or is ready to send.
-
-        Contact Information:
-        Name: {contact_name}
-        Company: {contact_company}
-        Role: {contact_role}
-
-        Research Summary:
-        {search_summary}
-
-        Current Draft:
-        {draft}
-
-        Sender Information:
-        {sender_info}
-
-        Evaluate the email based on these criteria:
-        1. Does it effectively use the research about the contact?
-        2. Is the tone appropriate for a student reaching out?
-        3. Is it personalized and specific enough or could the same email be sent to multiple contacts? Does it mention something specific about this persons background or is it generic?
-        4. Does it have a clear purpose and call to action?
-        5. Does it avoid common mistakes (being too pushy, too formal, or too casual)?
-        6. Is the email tailored to the receiver's company and role?
-        7. Is the email tailored to the sender's background and interests?
-        8. Is the email over wordy
-        9. Does the email sound like it was written by chatGPT?
-
-        Response optionsn are: 
-        REDRAFT: The email needs revision because the wording is bad, needs more research, or is not personalized enough.
-        SEARCH: The email needs more research because the contact information is not specific enough.
-        END: The email is ready to send.
-
-        Please be a tough critic
-
-        Respond in the following format:
-        COMMAND: [REDRAFT/SEARCH/END]
-        REASON: [Brief explanation of your decision]
-        DETAILS: [If REDRAFT: specific critiques and suggestions, If SEARCH: specific information to look for, If END: brief confirmation of why email is ready]
-        """
+        
 
     def evaluate_email(self, state: EmailState) -> EmailState:
         """Evaluate the current email draft and decide next steps."""

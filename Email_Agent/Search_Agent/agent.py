@@ -1,31 +1,26 @@
 """State for the email drafting graph."""
+# standard imports
 from typing import Annotated, List, TypedDict
+import operator
+
+# langchain imports
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 from langgraph.types import Command
-import operator
 from langchain_openai import ChatOpenAI
 from langchain.schema.output_parser import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import HumanMessage
 from langgraph.prebuilt import create_react_agent
-from ..tools.secrets_ret import get_secret
-from ..Object_Classes.contacts import Contact
-from ..Object_Classes.sender import Sender
-from .tools import tavily_search_tool
 from langgraph.graph import StateGraph
 from langgraph.constants import START, END
-import logging
 
-# Disable various loggers
-logging.getLogger("openai").setLevel(logging.WARNING)
-logging.getLogger("httpcore").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("google").setLevel(logging.WARNING)
-logging.getLogger("Email_Agent").setLevel(logging.WARNING)
+# local imports
+from ..Tools.secrets_ret import get_secret
+from ..Object_Classes.contacts import Contact
+from ..Object_Classes.sender import Sender
+from ..Search_Agent.tools import get_search_tools
+from ..Search_Agent.prompts import get_search_prompt
 
-# If you want to see ONLY your specific logs:
-logging.basicConfig(level=logging.WARNING)
 
 
 class EmailState(TypedDict):
@@ -55,17 +50,16 @@ class SearchState(TypedDict):
     analysis_result: str
 
 class SearchAgent:
-    def __init__(self, openai_api_key: str, tools: list, worker_name: str, system_message: str):
+    def __init__(self, worker_name: str, user_type: str):
         print("Initializing SearchAgent...")
         self.llm = ChatOpenAI(
             temperature=0.7,
-            openai_api_key=openai_api_key, 
+            openai_api_key=get_secret("OpenAPI_KEY"), 
             model="gpt-4-0125-preview"
         )
-        self.tools = tools
+        self.tools = get_search_tools("tavily")
         self.worker_name = worker_name
-        self.system_message = system_message
-        self.tools = [tavily_search_tool]
+        self.system_message = get_search_prompt(user_type)
         self.agent = create_react_agent(
             model=self.llm,
             tools=self.tools,

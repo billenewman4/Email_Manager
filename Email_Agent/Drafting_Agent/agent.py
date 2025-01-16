@@ -7,10 +7,10 @@ from langchain_openai import ChatOpenAI
 from langchain.schema.output_parser import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import HumanMessage
-from ..tools.secrets_ret import get_secret
+from ..Tools.secrets_ret import get_secret
 from ..Object_Classes.contacts import Contact
 from ..Object_Classes.sender import Sender
-
+from .prompts import get_prompt
 class EmailState(TypedDict):
     input: str
     workers_called: Annotated[List[str], operator.add]
@@ -23,13 +23,14 @@ class EmailState(TypedDict):
     AgentCommands: Command
 
 class DraftingAgent:
-    def __init__(self, openai_api_key: str, worker_name: str):
+    def __init__(self, worker_name: str, user_type: str):
         print("Initializing DraftingAgent...")
         self.llm = ChatOpenAI(
             temperature=0.7,
-            openai_api_key=openai_api_key, 
+            openai_api_key=get_secret("OpenAPI_KEY"), 
             model="gpt-4-0125-preview"
         )
+        self.prompt = get_prompt(user_type)
         self.worker_name = worker_name
         self.latest_draft = None
         print(f"Drafting agent initialized with {self.worker_name}")
@@ -41,39 +42,11 @@ class DraftingAgent:
         print("="*100)
         print("\n\n\n\n\n\n\n\n\n")
         
-        template = """Draft a {tone} email from a student to {receiver_name} at {receiver_company} regarding the following context:
 
-        Receiver Context:
-        {receiver_context}
-
-        Sender Information:
-        {sender_info}
-
-        Email Purpose:
-        {email_purpose}
-
-        Consider the following guidelines:
-        1. Briefly introduce yourself using relevant information from the sender's background. (optional)
-        2. Explain the purpose of your email, relating it to the receiver's work or company. Please note the sender will be reaching out about the current company the reciever is working at.
-        3. Highlight 1-2 key points from your background that are most relevant to the receiver or their company.
-        4. Express your interest in the company or the receiver's work, using specific details from the receiver context. If parallels exist in background (for example worked at the same company before), mention them but if nothing exists do not force it.
-        5. Include a clear call to action or request (e.g., a brief meeting, a response to a question).
-        6. Close with a polite and professional sign-off.
-
-        A few notes:
-        - The sender is a student reaching out to the receiver, but the email should not be too cringy or too excited.
-        - The sender is reaching out about the current company the receiver is working at.
-        - You do not have to use every single detail from the receiver context, only use what is most relevant.
-        - The sender is not trying to sell themselves, they are reaching out to learn more about the receiver's work and the company.
-        - This email should not sound like it was written by chatGPT!!!
-        - Do NOT brag in any way about the sender's background, achievements, or anything else.
-        - Do NOT use the sender's name in the email.
-
-        Draft:"""
 
         prompt = PromptTemplate(
             input_variables=["tone", "receiver_name", "receiver_company", "receiver_context", "sender_info", "email_purpose"],
-            template=template
+            template=self.prompt
         )
         
         chain = prompt | self.llm | StrOutputParser()

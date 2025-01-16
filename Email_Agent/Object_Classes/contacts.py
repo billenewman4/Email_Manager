@@ -1,6 +1,3 @@
-from datetime import datetime, date
-from dateutil.parser import parse
-from dateutil.relativedelta import relativedelta
 
 class Contact:
     def __init__(self, data):
