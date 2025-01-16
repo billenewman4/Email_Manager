@@ -7,18 +7,6 @@ from langgraph.graph import StateGraph, START, END
 import logging
 from langchain.chat_models import ChatOpenAI
 
-# Configure logging
-logging.basicConfig(level=logging.ERROR)  # Only show ERROR and CRITICAL
-for logger_name in [
-    'Email_Agent.web_agent',
-    'Email_Agent.secrets_ret',
-    'google.auth.transport.requests',
-    'urllib3.connectionpool',
-    'google',
-    'httpcore',
-    'httpx',
-]:
-    logging.getLogger(logger_name).setLevel(logging.ERROR)
 
 # Local imports
 from ..Tools.secrets_ret import get_secret
@@ -43,16 +31,13 @@ class EmailState(TypedDict):
     AgentCommands: Command
 
 def create_email_graph(user_type: str):
-    openai_key = get_secret("OpenAPI_KEY")
-    # Create system message for search agent
-   
-    
+
     # Initialize search agent with required arguments
     search_agent = SearchAgent(
         worker_name="search_agent",
         user_type=user_type
     )
-    supervisor_agent = SupervisorAgent(openai_api_key=openai_key, user_type=user_type) 
+    supervisor_agent = SupervisorAgent() 
     
     drafting_agent = DraftingAgent(
         worker_name="drafting_agent",
@@ -133,7 +118,6 @@ if __name__ == "__main__":
         "draft": "",
         "draft_index": 0,
         "search_index": 0,
-        "search_results": "",
         "AgentCommands": None
     }
     

@@ -19,7 +19,7 @@ from ..Tools.secrets_ret import get_secret
 from ..Object_Classes.contacts import Contact
 from ..Object_Classes.sender import Sender
 from ..Search_Agent.tools import get_search_tools
-from ..Search_Agent.prompts import get_search_prompt
+from ..Search_Agent.prompts import get_prompt
 
 
 
@@ -59,7 +59,7 @@ class SearchAgent:
         )
         self.tools = get_search_tools("tavily")
         self.worker_name = worker_name
-        self.system_message = get_search_prompt(user_type)
+        self.system_message = get_prompt(user_type)
         self.agent = create_react_agent(
             model=self.llm,
             tools=self.tools,

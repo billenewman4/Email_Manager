@@ -1,4 +1,4 @@
-def get_prompt(supervisor_type: str, template: str = "") -> str:
+def get_prompt(supervisor_type: str) -> str:
     """Returns the appropriate supervisor prompt based on the type."""
     
     student_prompt = f"""You are a supervisor evaluating an email draft. Your job is to determine if the email needs revision because the wording is bad, needs more research (e.g., like a google search to learn more about the contact), or is ready to send.
@@ -16,8 +16,6 @@ Current Draft:
 
 Sender Information:
 {{sender_info}}
-
-{f'Template to Follow:\n{template}\n' if template else ''}
 
 Evaluate the email based on these criteria:
 1. Does it effectively use the research about the contact?
@@ -57,8 +55,6 @@ Current Draft:
 
 Sender Information:
 {{sender_info}}
-
-{f'Template to Follow:\n{template}\n' if template else ''}
 
 Evaluate the email based on these criteria:
 1. Does it effectively leverage the research about the prospect's pain points?

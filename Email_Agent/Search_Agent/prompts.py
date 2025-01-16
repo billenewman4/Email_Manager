@@ -90,4 +90,4 @@ Focus on:
         'b2b': b2b_sales_prompt
     }
     
-    return prompts.get(search_type.lower(), tavily_prompt)
+    return prompts.get(search_type.lower(), student_prompt)

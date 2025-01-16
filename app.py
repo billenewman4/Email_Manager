@@ -132,6 +132,7 @@ async def test_email():
             "draft_index": 0,
             "search_index": 0,
             "search_results": "",
+            "search_summary": "",
             "summarized_search_results": "",
             "AgentCommands": None
         }

@@ -8,7 +8,9 @@ from langchain.schema.output_parser import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from ..Object_Classes.contacts import Contact
 from ..Object_Classes.sender import Sender
-from ..tools.secrets_ret import get_secret
+from ..Tools.secrets_ret import get_secret
+from .prompts import get_prompt
+
 class SupervisorCommand(TypedDict):
     command: Literal["REDRAFT", "SEARCH", "END"]
     reason: str
@@ -27,7 +29,7 @@ class EmailState(TypedDict):
     AgentCommands: SupervisorCommand
 
 class SupervisorAgent:
-    def __init__(self, openai_api_key: str):
+    def __init__(self):
         self.llm = ChatOpenAI(
             temperature=0.7,
             openai_api_key=get_secret("OpenAPI_KEY"), 
@@ -55,7 +57,7 @@ class SupervisorAgent:
             "contact_name": state["contact"].full_name,
             "contact_company": state["contact"].company_name,
             "contact_role": state["contact"].job_title,
-            "search_summary": state.get("search_summary", "No research available"),
+            "search_summary": state.get("summarized_search_results", "No research available"),
             "draft": state["draft"],
             "sender_info": state["sender"].get_relevant_content()
         })
