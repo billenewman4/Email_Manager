@@ -21,13 +21,13 @@ for logger_name in [
     logging.getLogger(logger_name).setLevel(logging.ERROR)
 
 # Local imports
-from .secrets_ret import get_secret
-from .Search_Agent.Search_Agent_tools import tavily_search_tool
-from .contacts import Contact
-from .sender import Sender
-from .Drafting_Agent.drafting_agent import DraftingAgent
-from .Search_Agent.Search_Agent import SearchAgent
-from .Supervisor_agent.Supervisor_Agent import SupervisorAgent
+from ..tools.secrets_ret import get_secret
+from ..Search_Agent.tools import tavily_search_tool
+from ..Object_Classes.contacts import Contact
+from ..Object_Classes.sender import Sender
+from ..Drafting_Agent.agent import DraftingAgent
+from ..Search_Agent.agent import SearchAgent
+from ..Supervisor_agent.agent import SupervisorAgent
 
 class EmailState(TypedDict):
     """State for the email drafting graph."""

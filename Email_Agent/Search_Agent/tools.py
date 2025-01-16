@@ -1,5 +1,5 @@
 from langchain.agents import Tool
-from ..web_agent import tavily_search_extract, tavily_search
+from ..Tavily.tools import tavily_search_extract, tavily_search
 import asyncio
 
 def sync_tavily_search(query: str) -> str:

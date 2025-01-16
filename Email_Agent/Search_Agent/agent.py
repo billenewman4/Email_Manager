@@ -8,10 +8,10 @@ from langchain.schema.output_parser import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import HumanMessage
 from langgraph.prebuilt import create_react_agent
-from ..secrets_ret import get_secret
-from ..contacts import Contact
-from ..sender import Sender
-from .Search_Agent_tools import tavily_search_tool
+from ..tools.secrets_ret import get_secret
+from ..Object_Classes.contacts import Contact
+from ..Object_Classes.sender import Sender
+from .tools import tavily_search_tool
 from langgraph.graph import StateGraph
 from langgraph.constants import START, END
 import logging
