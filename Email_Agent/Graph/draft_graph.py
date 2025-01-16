@@ -26,8 +26,7 @@ class EmailState(TypedDict):
     draft: str
     draft_index: int
     search_index: int
-    search_results: str
-    summarized_search_results: Annotated[str, operator.add]
+    search_results: Annotated[str, operator.add]
     AgentCommands: Command
 
 def create_email_graph(user_type: str):

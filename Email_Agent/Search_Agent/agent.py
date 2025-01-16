@@ -24,15 +24,16 @@ from ..Search_Agent.prompts import get_prompt
 
 
 class EmailState(TypedDict):
+    """State for the email drafting graph."""
     input: str
-    workers_called: Annotated[List[str], operator.add]
-    messages: List[BaseMessage] 
+    workers_called: Annotated[List[str], operator.add] 
+    messages: List[BaseMessage]
     contact: Contact
     sender: Sender
     draft: str
     draft_index: int
     search_index: int
-    search_summary: Annotated[str, operator.add]
+    search_results: Annotated[str, operator.add]
     AgentCommands: Command
 
 class SearchState(TypedDict):
