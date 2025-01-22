@@ -1,6 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
+import json
 
 def authenticate_firebase():
     """
@@ -10,14 +11,23 @@ def authenticate_firebase():
         firestore.Client: The Firestore client if authentication is successful, None otherwise.
     """
     try:
-        # Get the absolute path to the service account key
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        key_path = os.path.join(current_dir, 'emailmanager-2b0b7-firebase-adminsdk-fbsvc-1430ac2a15.json')
-        
+        # Load service account credentials from Google Cloud Secret Manager
+        from google.cloud import secretmanager
+
+        # Create the Secret Manager client
+        client = secretmanager.SecretManagerServiceClient()
+
+        # Access the secret version
+        secret_name = "projects/primeval-truth-431023-f9/secrets/FIREBASE_CONFIG/versions/latest"
+        response = client.access_secret_version(request={"name": secret_name})
+
+        # Parse the secret payload
+        service_account_info = json.loads(response.payload.data.decode("UTF-8"))
+
         # Check if Firebase app is already initialized
         if not firebase_admin._apps:
             # Use a service account
-            cred = credentials.Certificate(key_path)
+            cred = credentials.Certificate(service_account_info)
             firebase_admin.initialize_app(cred)
         
         db = firestore.client()

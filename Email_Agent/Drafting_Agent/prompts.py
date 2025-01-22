@@ -6,8 +6,18 @@ def get_prompt(user_type: str, template: str = "") -> str:
         sanitized_template = template.replace("\\", "\\\\").replace("{", "{{").replace("}", "}}")
         template_section = f"Template to Follow:\n{sanitized_template}\n"
     else:
-        template_section = ""
-    
+        template_section = """
+
+        Hello [recipients name],
+        
+        My name is [sender name] and I am reaching out because [reason for reaching out].
+        
+        [Insert a short, concise, description of your background and how it relates to the reason for reaching out and/or the recipient's background.]
+        
+        Would you have time in the coming weeks for a 15 minute call to discuss [topic] further?
+        
+        Best regards,
+        [sender name]"""    
     student_prompt = f"""You are an AI assistant that drafts professional emails.
 Your goal is to write personalized, effective emails for students reaching out to professionals.
 
@@ -31,6 +41,7 @@ Guidelines:
 4. Express genuine interest using specific details from the research
 5. Include a clear call to action (e.g., brief meeting request)
 6. Close professionally
+7. Use the template to follow as a guide, but don't be afraid to deviate if it makes sense.
 
 Important Notes:
 - Keep the tone professional but approachable
