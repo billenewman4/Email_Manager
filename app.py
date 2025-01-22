@@ -3,7 +3,7 @@ from Email_Agent.Object_Classes.sender import Sender
 from Email_Agent.Tools.secrets_ret import get_secret
 from Email_Agent.Graph.draft_graph import create_email_graph
 from langchain_openai import ChatOpenAI
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
@@ -14,27 +14,58 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5000",  # For local development
-        "https://email-manager-lilac.vercel.app"  # For production
+        "http://localhost:3000",  # Local development
+        "https://email-manager-lilac.vercel.app",  # Production
+        "https://email-agent-1085470808659.us-west2.run.app"  # Cloud Run URL
     ],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],  # Allow all headers for now to debug
+    expose_headers=["*"],
+    max_age=3600,
 )
 
-@app.post("/generate-email/student")
-async def generate_email(request_data: dict):
-    print("\n=== New Email Generation Request ===")
-    print(f"Contact Name: {request_data['contact_info']['name']}")
-    print(f"Company: {request_data['contact_info']['company']}")
+@app.options("/generate-email/student")
+async def options_email(request: Request):
+    """Handle OPTIONS requests explicitly"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Max-Age": "3600",
+        },
+    )
 
+# Add logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    print(f"\n=== Incoming {request.method} Request ===")
+    print(f"URL: {request.url}")
+    print(f"Headers: {request.headers}")
+    response = await call_next(request)
+    print(f"Response Status: {response.status_code}")
+    return response
+
+@app.post("/generate-email/student")
+async def generate_email(request: Request):
     try:
+        # Log the request body
+        body = await request.json()
+        print("\n=== Email Generation Request ===")
+        print(f"Request Body: {body}")
+        
+        print("\n=== New Email Generation Request ===")
+        print(f"Contact Name: {body['contact_info']['name']}")
+        print(f"Company: {body['contact_info']['company']}")
+
         # Initialize LLM
         openai_api_key = get_secret("OpenAPI_KEY")
         llm = ChatOpenAI(temperature=0.7, model="gpt-4", openai_api_key=openai_api_key)
 
         # Create sender object from user_info
-        user_info = request_data['user_info']
+        user_info = body['user_info']
         sender = Sender(
             name=user_info['name'],
             resume=user_info['resume_content'],
@@ -42,9 +73,8 @@ async def generate_email(request_data: dict):
             key_accomplishments=user_info['key_accomplishments'],
             llm=llm
         )
-
         # Create contact object from contact_info
-        contact_info = request_data['contact_info']
+        contact_info = body['contact_info']
         contact = Contact({
             'Full Name': contact_info['name'],
             'Company Name': contact_info['company'],
@@ -65,10 +95,16 @@ async def generate_email(request_data: dict):
             "sender": sender,
             "draft_index": 0,
             "search_index": 0,
-            "AgentCommands": None
+            "AgentCommands": None,
+            "workers_called": [],
+            "messages": [],
+            "draft": "",
+            "search_results": "",
+            "summarized_search_results": ""
         }
         
         # Run the graph
+        print("Graph Invoked")
         final_state = graph.invoke(initial_state)
 
         return {

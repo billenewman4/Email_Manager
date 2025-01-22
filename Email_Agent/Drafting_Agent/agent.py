@@ -39,32 +39,31 @@ class DraftingAgent:
         print("\n\n\n\n\n\n\n\n\n")
         print("="*100)
         print(f"Drafting email with state: {state}")
+        print(f"Drafting email with summary: {state.get('search_summary', 'No additional context available')}")
         print("="*100)
         print("\n\n\n\n\n\n\n\n\n")
-        
-
 
         prompt = PromptTemplate(
-            input_variables=["tone", "receiver_name", "receiver_company", "receiver_context", "sender_info", "email_purpose"],
+            input_variables=["contact_name", "contact_company", "contact_role", "search_summary", "sender_info"],
             template=self.prompt
         )
         
         chain = prompt | self.llm | StrOutputParser()
-        
         
         print("="*100)
         print("Sending request to LLM...")
         print(f"request includes receiver context: {state.get('search_summary', 'No additional context available')}")
         print("="*100)
         print("\n\n\n\n\n\n\n\n\n")
+        
         self.latest_draft = chain.invoke({
-            "tone": "professional",
-            "receiver_name": state["contact"].full_name,
-            "receiver_company": state["contact"].company_name,
-            "receiver_context": state.get("search_summary", "No additional context available"),
-            "sender_info": state["sender"].get_relevant_content(),
-            "email_purpose": f"reaching out as a student to discuss {state['contact'].full_name}'s work at {state['contact'].company_name}"
+            "contact_name": state["contact"].full_name,
+            "contact_company": state["contact"].company_name,
+            "contact_role": state["contact"].job_title,
+            "search_summary": state.get("search_summary", "No additional context available"),
+            "sender_info": state["sender"].get_relevant_content()
         })
+
         print("\n\n\n\n\n\n\n\n\n")
         print("="*100)
         print("Received response from LLM")

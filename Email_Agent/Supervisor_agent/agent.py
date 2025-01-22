@@ -35,7 +35,7 @@ class SupervisorAgent:
             openai_api_key=get_secret("OpenAPI_KEY"), 
             model="gpt-4-0125-preview"
         )
-        
+        self.evaluation_prompt = get_prompt("student")
         
 
     def evaluate_email(self, state: EmailState) -> EmailState:
@@ -43,9 +43,14 @@ class SupervisorAgent:
         
         print("\n\n\n\n\n\n\n\n\n")
         print("="*100)
-        print(f"Evaluating email with state: {state}")
+        print(f"Evaluating email with draft: {state['draft']}")
         print("="*100)
         print("\n\n\n\n\n\n\n\n\n")
+
+        print("="*100)
+        print(f"Search index: {state['search_index']}")
+        print(f"Draft index: {state['draft_index']}")
+        print("="*100)
         
         evaluation_chain = PromptTemplate(
             input_variables=["contact_name", "contact_company", "contact_role", 
@@ -80,6 +85,14 @@ class SupervisorAgent:
                 current_section = "details"
             elif line.strip() and current_section == "details":
                 details.append(line.strip())
+        if command == "SEARCH" and state.get("search_index") > 2:
+            command = "END"
+            reason = "max search attempts reached"
+            details = "No more search attempts allowed"
+        elif command == "REDRAFT" and state.get("draft_index") > 2:
+            command = "END"
+            reason = "max redraft attempts reached"
+            details = "No more redraft attempts allowed"
         
         supervisor_command = SupervisorCommand(
             command=command,
@@ -118,7 +131,7 @@ class EmailState(TypedDict):
 
 
 if __name__ == "__main__":
-    from ..tools.secrets_ret import get_secret
+    from ..Tools.secrets_ret import get_secret
     
     # Test the supervisor
     openai_key = get_secret("OpenAPI_KEY")

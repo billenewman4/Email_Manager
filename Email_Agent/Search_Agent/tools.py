@@ -6,7 +6,7 @@ def get_search_tools(search_type: str) -> list:
     
     if search_type == "tavily":
         @tool
-        async def search_with_context(query: str) -> dict:
+        def search_with_context(query: str) -> dict:
             """
             Search the web using Tavily and return both search results and raw context.
             
@@ -18,14 +18,15 @@ def get_search_tools(search_type: str) -> list:
                     - results: Summarized search results
                     - raw_context: Additional context from the search
             """
-            results, raw_context = await tavily_search(query)
+            import asyncio
+            results, raw_context = asyncio.run(tavily_search(query))
             return {
                 "results": results,
                 "raw_context": raw_context
             }
             
         @tool
-        async def search_with_extraction(query: str) -> tuple:
+        def search_with_extraction(query: str) -> tuple:
             """
             Search the web using Tavily and extract relevant information.
             
@@ -37,7 +38,8 @@ def get_search_tools(search_type: str) -> list:
                     - content: Extracted and processed content
                     - raw_context: Raw search results for additional context
             """
-            return await tavily_search_extract(query)
+            import asyncio
+            return asyncio.run(tavily_search_extract(query))
             
         return [search_with_context, search_with_extraction]
         

@@ -45,7 +45,7 @@ class SearchState(TypedDict):
     draft: str
     search_index: int
     search_query: Annotated[str, operator.add]
-    search_results: str
+    raw_search_results: str
     search_summary: Annotated[str, operator.add]
     AgentCommands: Command
     analysis_result: str
@@ -56,7 +56,7 @@ class SearchAgent:
         self.llm = ChatOpenAI(
             temperature=0.7,
             openai_api_key=get_secret("OpenAPI_KEY"), 
-            model="gpt-4-0125-preview"
+            model="gpt-4o-mini-2024-07-18"
         )
         self.tools = get_search_tools("tavily")
         self.worker_name = worker_name
@@ -78,7 +78,7 @@ class SearchAgent:
         sender_name = getattr(state.get("sender", {}), "name", "User")
         contact_name = getattr(state.get("contact", {}), "full_name", "Contact")
         company_name = getattr(state.get("contact", {}), "company_name", "Company")
-        search_results = state["search_results"]
+        search_results = state["raw_search_results"]
 
         summary_chain = (
             PromptTemplate(
@@ -121,7 +121,9 @@ class SearchAgent:
         }
 
     def search_context(self, state: EmailState) -> EmailState:
-
+        print("="*100)
+        print("Searching for context...")
+        print("="*100)
         # Create the agent's input
         agent_input = ""
         if state.get("analysis_result"):
@@ -138,8 +140,6 @@ class SearchAgent:
             Search for information about {state['contact'].full_name} at {state['contact'].company_name}.
             Specifically looking for: {state['input']}
         
-            Previous search attempt #{state['search_query']} results:
-            {state['search_results']}
         
              Use the tavily_search tool to find this information. Please do not repeat the same search query.
             """
@@ -179,7 +179,7 @@ class SearchAgent:
             "messages": state["messages"] + [HumanMessage(content=search_results)],
             "search_index": state["search_index"] + 1,
             "search_query": search_query,  # Add the actual query used
-            "search_results": search_results  # Add the results received
+            "raw_search_results": search_results  # Add the results received
         }
     
     def analyze_search(self, state: SearchState) -> SearchState:
@@ -227,7 +227,9 @@ class SearchAgent:
     def create_search_graph(self, state: EmailState) -> EmailState:
         # Get API key
         openai_key = get_secret("OpenAPI_KEY")
-        
+        print("="*100)
+        print(f"Creating search graph!")
+        print("="*100)
         
 
         # Create graph with initial SearchState
@@ -261,7 +263,7 @@ class SearchAgent:
         
         def should_continue(state):
             print("="*100)
-            print ("State input: ", state["input"])
+            print ("Should continue?")
             print("="*100)
             print("state workers called: ", state["workers_called"])
             print("="*100)

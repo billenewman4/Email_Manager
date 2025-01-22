@@ -1,9 +1,6 @@
 import sys
 from ..Tools.secrets_ret import get_secret
 from tavily import TavilyClient
-import asyncio
-import aiohttp
-import logging
 
 tavily_api_key = get_secret("TAVILY_API_KEY")
 
@@ -13,13 +10,13 @@ if not tavily_api_key:
 # Initialize Tavily client
 tavily_client = TavilyClient(api_key=tavily_api_key)
 
-async def tavily_search(query, search_depth="advanced", max_results=5, include_raw_content=True):
+def tavily_search(query, search_depth="advanced", max_results=5, include_raw_content=True):
     """
     Perform a search using Tavily API and get both search results and raw context.
     """
     try:
         print(f"\nDEBUG: Tavily Search")
-        print(f"API Key: {tavily_api_key[:5]}...")  # Print first 5 chars of API key
+        print(f"API Key: {tavily_api_key[:5]}...")
         print(f"Query: {query}")
         print(f"Search depth: {search_depth}")
         print(f"Max results: {max_results}")
@@ -38,13 +35,16 @@ async def tavily_search(query, search_depth="advanced", max_results=5, include_r
             ]
         )
         
-        # If we get here, the search was successful
         results = search_response.get('results', [])
+        
+        # Limit raw context size to prevent token overflow
         raw_context = str(search_response)
+        if len(raw_context) > 10000:  # Limit to ~2500 tokens
+            raw_context = raw_context[:10000] + "... [truncated]"
         
         print(f"\nSearch completed successfully")
         print(f"Found {len(results)} results")
-        print(f"Raw context length: {len(raw_context)}")
+        print(f"Raw context length (after truncation): {len(raw_context)}")
         
         return results, raw_context
         
@@ -52,7 +52,6 @@ async def tavily_search(query, search_depth="advanced", max_results=5, include_r
         print(f"\nDEBUG: Tavily Search Error")
         print(f"Error type: {type(e)}")
         print(f"Error message: {str(e)}")
-        print(f"Query that caused error: {query}")
         return [], ""
 
 def tavily_context_search(query, max_tokens=4000, **kwargs):
@@ -95,25 +94,19 @@ def tavily_extract_content(query, max_results=2):
         print(f"An error occurred during Tavily content extraction: {str(e)}")
         return None
 
-async def tavily_search_extract(query: str) -> tuple[str, str]:
+def tavily_search_extract(query: str) -> tuple[str, str]:
     """
     Perform a search using Tavily API and extract both content and raw context.
-    
-    Args:
-        query: The search query string
-    
-    Returns:
-        tuple: (processed_content, raw_context)
     """
     try:
         print(f"Searching with query: {query}")
         
         # Get regular search results
-        results = tavily_search(
+        results, _ = tavily_search(
             query=query,
             search_depth="advanced",
             max_results=5,
-            include_raw_content=True  # Include raw content in results
+            include_raw_content=True
         )
         
         # Get raw context
@@ -143,15 +136,6 @@ async def tavily_search_extract(query: str) -> tuple[str, str]:
         return f"Error performing search: {str(e)}", ""
 
 if __name__ == "__main__":
-    async def main():
-        await tavily_search_extract("https://www.prccopack.com/")
-    
-    # Run the async main function
-    asyncio.run(main())
-    
-    
-    
-    
     test_domain = "prccopack.com"
     print("\n" + "="*50)
     print("Testing Tavily functions with:", test_domain)

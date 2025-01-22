@@ -38,7 +38,7 @@ Important Notes:
 - Be specific to this person and company
 - Avoid sounding like AI-generated text
 - Don't oversell or brag about achievements
-- Keep it concise and focused
+- Keep it concise and focused ... no more than 200 words
 
 Draft the email following these guidelines while maintaining a natural, human voice."""
 

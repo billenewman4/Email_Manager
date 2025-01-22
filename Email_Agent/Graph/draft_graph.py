@@ -27,6 +27,7 @@ class EmailState(TypedDict):
     draft_index: int
     search_index: int
     search_results: Annotated[str, operator.add]
+    search_summary: Annotated[str, operator.add]
     AgentCommands: Command
 
 def create_email_graph(user_type: str):
@@ -69,6 +70,7 @@ def create_email_graph(user_type: str):
     # Route back to Supervisor from Search and Draft
     builder.add_edge("Search", "Supervisor")
     builder.add_edge("Draft", "Supervisor")
+    print("Graph created")
     return builder.compile()
 
 
@@ -117,6 +119,8 @@ if __name__ == "__main__":
         "draft": "",
         "draft_index": 0,
         "search_index": 0,
+        "search_results": "",
+        "search_summary": "",
         "AgentCommands": None
     }
     
@@ -127,10 +131,10 @@ if __name__ == "__main__":
     print("\n" + "="*50 + " GRAPH EXECUTION RESULTS " + "="*50)
     print(f"\nInput Query: {result['input']}")
     print(f"\nWorkers Called (Order of Operations): {result['workers_called']}")
-    print(f"\nSearch Results: {result['search_results']}")
     print(f"\nFinal Draft: {result['draft']}")
     print(f"\nDraft Iterations: {result['draft_index']}")
     print(f"\nSearch Iterations: {result['search_index']}")
+    print(f"\nSearch Summary: {result['search_summary']}")
     print("\nMessage History:")
     for msg in result['messages']:
         print(f"\n{msg.type}: {msg.content[:200]}...")

@@ -25,8 +25,9 @@ Evaluate the email based on these criteria:
 5. Does it avoid common mistakes (being too pushy, too formal, or too casual)?
 6. Is the email tailored to the receiver's company and role?
 7. Is the email tailored to the sender's background and interests?
-8. Is the email over wordy?
+8. Is the email over wordy? Should be no more than 200 words! Strictly enforced!
 9. Does the email sound like it was written by chatGPT?
+10. Does the email sound too braggy like including awards or accolades that would be akward or inappropriate to mention?
 
 Response options are:
 REDRAFT: The email needs revision because the wording is bad, needs more research, or is not personalized enough.
