@@ -56,3 +56,6 @@ __pycache__/
 
 # Ignore CSV files
 *.csv
+
+# Firebase credentials
+Email_Agent/Firebase/*.json
