@@ -49,22 +49,25 @@ async def log_requests(request: Request, call_next):
     print(f"Response Status: {response.status_code}")
     return response
 
-@app.post("/generate-email/student/json")
-async def generate_email_json(request: Request):
-    return "Success"
-    body = await request.json()
-    return await generate_email(body)
-
 @app.post("/generate-email/student/batch")
 async def generate_email_batch(request: Request):
     """
-    Generate multiple emails from an array of JSON objects.
+    Generate multiple emails from an array of contacts.
     Expected format:
     {
-        "emails": [
+        "user_info": {
+            "name": "Name",
+            "resume_content": "...",
+            "career_interest": "...",
+            "key_accomplishments": [...]
+        },
+        "contacts": [
             {
-                "user_info": {...},
-                "contact_info": {...}
+                "contact_info": {
+                    "name": "Name",
+                    "company": "Company",
+                    "role": "Role"
+                }
             },
             ...
         ]
@@ -72,27 +75,45 @@ async def generate_email_batch(request: Request):
     """
     try:
         body = await request.json()
+        print(f"Request Body: {body}")
         
-        if not isinstance(body.get('emails'), list):
+        if not isinstance(body.get('contacts'), list):
             return JSONResponse(
                 status_code=400,
-                content={"error": "Request must contain an 'emails' array"}
+                content={"error": "Request must contain a 'contacts' array"}
+            )
+
+        if not body.get('user_info'):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Request must contain 'user_info'"}
             )
 
         results = []
-        for email_request in body['emails']:
+        for contact in body['contacts']:
             try:
+                print(f"Processing contact: {contact['contact_info']}")
+                print(f"User Info: {body['user_info']}")
+                
+                # Create the properly formatted request for generate_email
+                email_request = {
+                    "user_info": body['user_info'],
+                    "contact_info": contact['contact_info']
+                }
+                
+                # Pass the dictionary directly to generate_email
                 result = await generate_email(email_request)
                 results.append({
                     "success": True,
                     "result": result,
-                    "request": email_request
+                    "contact": contact['contact_info']
                 })
             except Exception as e:
+                print(f"Error processing contact {contact['contact_info']['name']}: {str(e)}")
                 results.append({
                     "success": False,
                     "error": str(e),
-                    "request": email_request
+                    "contact": contact['contact_info']
                 })
 
         return {
@@ -103,6 +124,7 @@ async def generate_email_batch(request: Request):
         }
 
     except Exception as e:
+        print(f"Batch processing failed: {str(e)}")
         return JSONResponse(
             status_code=500,
             content={"error": f"Batch processing failed: {str(e)}"}
@@ -111,8 +133,12 @@ async def generate_email_batch(request: Request):
 @app.post("/generate-email/student")
 async def generate_email(request: Request):
     try:
-        # Log the request body
-        body = await request.json()
+        # Handle both Request objects and dictionaries
+        if isinstance(request, dict):
+            body = request
+        else:
+            body = await request.json()
+            
         print("\n=== Email Generation Request ===")
         print(f"Request Body: {body}")
         
