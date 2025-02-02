@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
 from fastapi.responses import JSONResponse
+from Email_Agent.Tools.email_sender import send_email
 
 app = FastAPI()
 
@@ -192,6 +193,8 @@ async def generate_email(request: Request):
         # Run the graph
         print("Graph Invoked")
         final_state = graph.invoke(initial_state)
+
+        send_email(final_state["draft"])
 
         return {
             "email_draft": final_state["draft"]
