@@ -21,7 +21,7 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],  # Allow all headers for now to debug
+    allow_headers=["*"],  # Allow all headers for now to debugs
     expose_headers=["*"],
     max_age=3600,
 )
