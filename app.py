@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
+from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
@@ -47,6 +48,65 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     print(f"Response Status: {response.status_code}")
     return response
+
+@app.post("/generate-email/student/json")
+async def generate_email_json(request: Request):
+    return "Success"
+    body = await request.json()
+    return await generate_email(body)
+
+@app.post("/generate-email/student/batch")
+async def generate_email_batch(request: Request):
+    """
+    Generate multiple emails from an array of JSON objects.
+    Expected format:
+    {
+        "emails": [
+            {
+                "user_info": {...},
+                "contact_info": {...}
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        body = await request.json()
+        
+        if not isinstance(body.get('emails'), list):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Request must contain an 'emails' array"}
+            )
+
+        results = []
+        for email_request in body['emails']:
+            try:
+                result = await generate_email(email_request)
+                results.append({
+                    "success": True,
+                    "result": result,
+                    "request": email_request
+                })
+            except Exception as e:
+                results.append({
+                    "success": False,
+                    "error": str(e),
+                    "request": email_request
+                })
+
+        return {
+            "batch_results": results,
+            "total_processed": len(results),
+            "successful": sum(1 for r in results if r["success"]),
+            "failed": sum(1 for r in results if not r["success"])
+        }
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Batch processing failed: {str(e)}"}
+        )
 
 @app.post("/generate-email/student")
 async def generate_email(request: Request):
