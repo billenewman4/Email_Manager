@@ -1,47 +1,98 @@
-from langchain_core.tools import tool
-from ..Tavily.tools import tavily_search_extract, tavily_search
+from langchain_core.tools import Tool
+from ..Tavily.tools import tavily_client
 
 def get_search_tools(search_type: str) -> list:
     """Returns the appropriate search tools based on the search type."""
     
     if search_type == "tavily":
-        @tool
         def search_with_context(query: str) -> dict:
             """
             Search the web using Tavily and return both search results and raw context.
-            
-            Args:
-                query (str): The search query to execute
-                
-            Returns:
-                dict: Contains two keys:
-                    - results: Summarized search results
-                    - raw_context: Additional context from the search
+            Use this tool when you need to gather detailed information about a person, company, or topic.
             """
-            import asyncio
-            results, raw_context = asyncio.run(tavily_search(query))
-            return {
-                "results": results,
-                "raw_context": raw_context
-            }
+            try:
+                print(f"\nDEBUG: Tavily Search")
+                print(f"Query: {query}")
+                
+                # Get search results
+                search_response = tavily_client.search(
+                    query=query,
+                    search_depth="advanced",
+                    max_results=5
+                )
+                
+                results = search_response.get('results', [])
+                raw_context = str(search_response)
+                
+                # Limit context size
+                if len(raw_context) > 10000:
+                    raw_context = raw_context[:10000] + "... [truncated]"
+                
+                print(f"Found {len(results)} results")
+                return {
+                    "results": results,
+                    "raw_context": raw_context
+                }
+            except Exception as e:
+                print(f"Error in search_with_context: {str(e)}")
+                return {
+                    "results": [],
+                    "raw_context": f"Error occurred: {str(e)}"
+                }
             
-        @tool
         def search_with_extraction(query: str) -> tuple:
             """
             Search the web using Tavily and extract relevant information.
-            
-            Args:
-                query (str): The search query to execute
-                
-            Returns:
-                tuple: (content, raw_context) where:
-                    - content: Extracted and processed content
-                    - raw_context: Raw search results for additional context
+            Use this tool when you need to extract specific content from search results.
             """
-            import asyncio
-            return asyncio.run(tavily_search_extract(query))
+            try:
+                print(f"Searching with query: {query}")
+                
+                # Get search results
+                search_response = tavily_client.search(
+                    query=query,
+                    search_depth="advanced",
+                    max_results=5
+                )
+                
+                results = search_response.get('results', [])
+                
+                # Get raw context
+                raw_context = tavily_client.get_search_context(
+                    query=query,
+                    max_tokens=4000,
+                    search_depth="advanced"
+                )
+                
+                if not results:
+                    return "No search results found.", raw_context or ""
+                    
+                # Extract and combine relevant content
+                content = []
+                for result in results:
+                    content.append(result.get('content', ''))
+                
+                extracted_content = ' '.join(content)
+                
+                print(f"Extracted content length: {len(extracted_content)}")
+                return extracted_content, raw_context
+                
+            except Exception as e:
+                print(f"Error in search_with_extraction: {str(e)}")
+                return f"Error performing search: {str(e)}", ""
             
-        return [search_with_context, search_with_extraction]
+        return [
+            Tool(
+                name="search_with_context",
+                description="Search the web for information about a person or company",
+                func=search_with_context
+            ),
+            Tool(
+                name="search_with_extraction",
+                description="Search and extract specific content from web results",
+                func=search_with_extraction
+            )
+        ]
         
     elif search_type == "google":
         # Add Google search specific tools here

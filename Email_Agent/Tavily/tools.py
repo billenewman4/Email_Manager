@@ -10,7 +10,7 @@ if not tavily_api_key:
 # Initialize Tavily client
 tavily_client = TavilyClient(api_key=tavily_api_key)
 
-def tavily_search(query, search_depth="advanced", max_results=5, include_raw_content=True):
+def tavily_search(query: str, search_depth="advanced", max_results=5, include_raw_content=True):
     """
     Perform a search using Tavily API and get both search results and raw context.
     """
@@ -54,14 +54,9 @@ def tavily_search(query, search_depth="advanced", max_results=5, include_raw_con
         print(f"Error message: {str(e)}")
         return [], ""
 
-def tavily_context_search(query, max_tokens=4000, **kwargs):
+def tavily_context_search(query: str, max_tokens=4000, **kwargs):
     """
     Perform a context search using Tavily API.
-    
-    :param query: The search query string
-    :param max_tokens: Maximum number of tokens for the context (default: 40000)
-    :param kwargs: Additional keyword arguments for the search
-    :return: Context string for RAG applications
     """
     try:
         context = tavily_client.get_search_context(
@@ -72,26 +67,6 @@ def tavily_context_search(query, max_tokens=4000, **kwargs):
         return context
     except Exception as e:
         print(f"An error occurred during Tavily context search: {str(e)}")
-        return None
-
-def tavily_extract_content(query, max_results=2):
-    """
-    Extract content from URLs found in Tavily search results.
-    
-    :param query: The search query string
-    :param max_results: Maximum number of search results to use for extraction
-    :return: Dictionary containing extracted results and failed URLs
-    """
-    try:
-        # First, perform a search to get the URLs
-        search_results = tavily_search(query, max_results=max_results)
-        urls = [result['url'] for result in search_results]
-        
-        # Then, extract content from these URLs
-        response = tavily_client.extract(urls=urls)
-        return response
-    except Exception as e:
-        print(f"An error occurred during Tavily content extraction: {str(e)}")
         return None
 
 def tavily_search_extract(query: str) -> tuple[str, str]:
@@ -145,10 +120,9 @@ if __name__ == "__main__":
     print("\n1. Testing tavily_search with different parameters:")
     print("-"*30)
     search_results, raw_context = tavily_search(
-        query=f"Tell me about",
-        url=test_domain,
+        query=f"Tell me about {test_domain}",
         search_depth="advanced",
-        max_results=3,
+        max_results=3
     )
     
     print("\nResults:")
@@ -163,20 +137,18 @@ if __name__ == "__main__":
     # Test 2: Context Search
     print("\n2. Testing tavily_context_search:")
     print("-"*30)
-    context = tavily_client.get_search_context(
+    context = tavily_context_search(
         query=f"What does {test_domain} company do? Their products and services?",
         max_tokens=4000,
-        search_depth="advanced",
-        include_domains=[test_domain]
+        search_depth="advanced"
     )
     print("Context Results:", context)
 
     # Test 3: Content Extraction
     print("\n3. Testing tavily_extract_content:")
     print("-"*30)
-    extracted = tavily_client.extract(
-        urls=[f"https://www.{test_domain}"]
+    content, context = tavily_search_extract(
+        query=f"Information about {test_domain}"
     )
-    if extracted:
-        print("Extracted Content:")
-        print(json.dumps(extracted, indent=2))
+    print("Extracted Content:", content[:200] + "..." if content else "None")
+    print("Context Length:", len(context) if context else 0)

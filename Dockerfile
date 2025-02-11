@@ -1,5 +1,5 @@
 # Build stage
-FROM python:3.9-slim as builder
+FROM --platform=linux/amd64 python:3.9-slim as builder
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Final stage
-FROM python:3.9-slim
+FROM --platform=linux/amd64 python:3.9-slim
 
 WORKDIR /app
 
@@ -21,5 +21,8 @@ COPY . .
 # Make port 8080 available
 EXPOSE 8080
 
-# Start the app with explicit error reporting
+# Set debug mode
+ENV DEBUG=true
+
+# Start the app with explicit error reporting and debug mode
 CMD exec python -u app.py 2>&1

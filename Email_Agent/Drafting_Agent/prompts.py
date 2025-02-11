@@ -10,7 +10,7 @@ def get_prompt(user_type: str, template: str = "") -> str:
 
         Hello [recipients name],
         
-        My name is [sender name] and I am reaching out because [reason for reaching out].
+        My name is [sender name] and I am reaching out because [reason for reaching out, refrence specific examples from the person's background].
         
         [Insert a short, concise, description of your background and how it relates to the reason for reaching out and/or the recipient's background.]
         

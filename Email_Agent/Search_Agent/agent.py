@@ -65,7 +65,7 @@ class SearchAgent:
             model=self.llm,
             tools=self.tools,
             state_modifier=self.system_message,
-            debug=False
+            debug=True
         )
         print(f"Search agent initialized with {self.worker_name}")
     
@@ -131,7 +131,7 @@ class SearchAgent:
             Search for information about {state['contact'].full_name} at {state['contact'].company_name}.
             The feedback from the previous search attempt was: {state['analysis_result']}
 
-            Use the tavily_search tool to find this information. Please do not repeat the same search query. Please use the feedback you recivied to improve your search query.
+            Use the tavily_search tool to find this information. Please do not repeat the same search query. Please use the feedback you recivied to improve your search query. Please only make one call to the tavily_search tool.
         
             Previous search attempt #{state['search_query']}
             """
@@ -141,7 +141,7 @@ class SearchAgent:
             Specifically looking for: {state['input']}
         
         
-             Use the tavily_search tool to find this information. Please do not repeat the same search query.
+             Use the tavily_search tool to find this information. Please do not repeat the same search query. Please only make one call to the tavily_search tool.
             """
         
 
