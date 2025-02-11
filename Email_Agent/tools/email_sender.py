@@ -13,13 +13,15 @@ def send_email(email_body: str) -> dict:
     """
     # Create the email payload
     email_data = {
-        "subject": "test",
+        "subject": "Your Networking email is ready!",
         "email": "eshantarneja@gmail.com",
         "body": email_body
     }
     
     # API endpoint
-    url = "https://f3c2-199-94-1-207.ngrok-free.app/nylas/send-email-manager"
+    url = "https://nylas-app-221518599345.us-central1.run.app/nylas/send-email-manager"
+
+    
     
     # Headers for the request
     headers = {
