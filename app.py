@@ -8,7 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
 from fastapi.responses import JSONResponse
-from Email_Agent.Tools.email_sender import send_email
+from Email_Agent.Tools.email_sender_python import send_email
+
+# Configuration settings
+MAX_SEARCH_ATTEMPTS = 3  # Default value, can be adjusted as needed
+MAX_REDRAFT_ATTEMPTS = 3  # Default value, can be adjusted as needed
 
 app = FastAPI()
 
@@ -151,15 +155,20 @@ async def generate_email(request: Request):
         openai_api_key = get_secret("OpenAPI_KEY")
         llm = ChatOpenAI(temperature=0.7, model="gpt-4", openai_api_key=openai_api_key)
 
-        # Create sender object from user_info
+        # Get user info and store email separately
         user_info = body['user_info']
+        user_email = user_info.get('email', 'billenewman4@gmail.com')  # Store email separately
+
+        # Create sender object from user_info (without email)
         sender = Sender(
             name=user_info['name'],
+            email=user_email,
             resume=user_info['resume_content'],
             career_interest=user_info['career_interest'],
             key_accomplishments=user_info['key_accomplishments'],
             llm=llm
         )
+        
         # Create contact object from contact_info
         contact_info = body['contact_info']
         contact = Contact({
@@ -173,13 +182,13 @@ async def generate_email(request: Request):
         })
 
         # Initialize the graph
-        graph = create_email_graph("student")
+        graph = create_email_graph("student", max_search_attempts=MAX_SEARCH_ATTEMPTS, max_redraft_attempts=MAX_REDRAFT_ATTEMPTS)
         
         # Create initial state
         initial_state = {
             "input": f"Draft an email to connect to {contact.full_name} at {contact.company_name} about {user_info['career_interest']} with the intent of getting a phone call",
             "contact": contact,
-            "sender": sender,
+            "sender_context": sender.get_relevant_content(),
             "draft_index": 0,
             "search_index": 0,
             "AgentCommands": None,
@@ -194,10 +203,18 @@ async def generate_email(request: Request):
         print("Graph Invoked")
         final_state = graph.invoke(initial_state)
 
-        send_email(final_state["draft"])
+        email_body = final_state["draft"] + "\n\n" + "\n".join(final_state["search_summary"])
+
+        # Send email using the stored email address
+        email_result = send_email(email_body, user_email)
+        
+        if not email_result.get('success'):
+            print(f"Warning: Failed to send email: {email_result.get('error')}")
 
         return {
-            "email_draft": final_state["draft"]
+            "email_draft": final_state["draft"],
+            "email_sent": email_result.get('success', False),
+            "email_error": email_result.get('error', None)
         }
 
     except Exception as e:
@@ -244,7 +261,7 @@ async def test_email():
         )
 
         # Initialize the graph
-        graph = create_email_graph("student")
+        graph = create_email_graph("student", max_search_attempts=MAX_SEARCH_ATTEMPTS, max_redraft_attempts=MAX_REDRAFT_ATTEMPTS)
         
         # Create initial state
         initial_state = {
@@ -278,6 +295,89 @@ async def test_email():
     except Exception as e:
         print(f"Error generating test email: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/generate-email/b2bsales")
+async def generate_email(request: Request):
+    try:
+        # Handle both Request objects and dictionaries
+        if isinstance(request, dict):
+            body = request
+        else:
+            body = await request.json()
+            
+        print("\n=== Email Generation Request B2B ===")
+        print(f"Request Body: {body}")
+        
+        print("\n=== New Email Generation Request ===")
+        print(f"Contact Name: {body['contact_info']['name']}")
+        print(f"Company: {body['contact_info']['company']}")
+
+        # Initialize LLM
+        openai_api_key = get_secret("OpenAPI_KEY")
+        llm = ChatOpenAI(temperature=0.7, model="gpt-4", openai_api_key=openai_api_key)
+
+        # Get user info and store email separately
+        user_info = body['user_info']
+        user_email = user_info.get('email', 'billenewman4@gmail.com')  # Store email separately
+
+        # For B2B sales version, just use the user's name as sender context
+        # instead of creating a full Sender object
+        sender_name = user_info['name']
+        
+        # Create contact object from contact_info
+        contact_info = body['contact_info']
+        contact = Contact({
+            'Full Name': contact_info['name'],
+            'Company Name': contact_info['company'],
+            'Job Title': contact_info.get('role', 'N/A'),
+            'Company Description': contact_info.get('company_description', 'N/A'),
+            'Location': contact_info.get('location', 'N/A'),
+            'Department': contact_info.get('department', 'N/A'),
+            'LinkedIn': contact_info.get('linkedin', 'N/A')
+        })
+
+        # Initialize the graph
+        graph = create_email_graph("student", max_search_attempts=MAX_SEARCH_ATTEMPTS, max_redraft_attempts=MAX_REDRAFT_ATTEMPTS)
+        
+        # Create initial state
+        initial_state = {
+            "input": f"Draft an email to connect to {contact.full_name} at {contact.company_name} about {user_info['career_interest']} with the intent of getting a phone call",
+            "contact": contact,
+            "sender_context": sender_name,
+            "draft_index": 0,
+            "search_index": 0,
+            "AgentCommands": None,
+            "workers_called": [],
+            "messages": [],
+            "draft": "",
+            "search_results": "",
+            "summarized_search_results": ""
+        }
+        
+        # Run the graph
+        print("Graph Invoked")
+        final_state = graph.invoke(initial_state)
+
+        email_body = final_state["draft"] + "\n\n" + "\n".join(final_state["search_summary"])
+
+        # Send email using the stored email address
+        email_result = send_email(email_body, user_email)
+        
+        if not email_result.get('success'):
+            print(f"Warning: Failed to send email: {email_result.get('error')}")
+
+        return {
+            "email_draft": final_state["draft"],
+            "email_sent": email_result.get('success', False),
+            "email_error": email_result.get('error', None)
+        }
+
+    except Exception as e:
+        print(f"Error generating email: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+
 
 @app.get("/")
 async def root():

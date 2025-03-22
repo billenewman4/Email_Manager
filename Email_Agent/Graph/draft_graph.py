@@ -5,7 +5,7 @@ import operator
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.graph import StateGraph, START, END
 import logging
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 
 
 # Local imports
@@ -22,7 +22,7 @@ class EmailState(TypedDict):
     workers_called: Annotated[List[str], operator.add] 
     messages: List[BaseMessage]
     contact: Contact
-    sender: Sender
+    sender_context: str
     draft: str
     draft_index: int
     search_index: int
@@ -30,18 +30,23 @@ class EmailState(TypedDict):
     search_summary: Annotated[str, operator.add]
     AgentCommands: Command
 
-def create_email_graph(user_type: str):
+def create_email_graph(user_type: str, max_search_attempts: int = 3, max_redraft_attempts: int = 3, template: str | None = None):
 
     # Initialize search agent with required arguments
     search_agent = SearchAgent(
         worker_name="search_agent",
-        user_type=user_type
+        user_type=user_type,
+        max_search_attempts=max_search_attempts
     )
-    supervisor_agent = SupervisorAgent() 
+    supervisor_agent = SupervisorAgent(
+        max_search_attempts=max_search_attempts,
+        max_redraft_attempts=max_redraft_attempts
+    )
     
     drafting_agent = DraftingAgent(
         worker_name="drafting_agent",
-        user_type=user_type
+        user_type=user_type,
+        template=template
     )
     
     # Initialize graph
@@ -59,7 +64,7 @@ def create_email_graph(user_type: str):
     # Edges from Supervisor with conditions
     builder.add_conditional_edges(
         "Supervisor",
-        lambda x: x["AgentCommands"],
+        lambda x: x["AgentCommands"]["command"],
         {
             "SEARCH": "Search",
             "REDRAFT": "Draft",
@@ -103,11 +108,12 @@ if __name__ == "__main__":
             "Built and deployed ML pipeline serving 10k+ users",
             "Winner of University Innovation Challenge"
         ],
+        email="alex.rivera@stanford.edu",
         llm=ChatOpenAI(temperature=0.7, model="gpt-4-0125-preview", openai_api_key=openai_key)
     )
     
     # Initialize the graph with agents
-    graph = create_email_graph()
+    graph = create_email_graph(user_type="student")
     
     # Create comprehensive initial state
     initial_state = {
@@ -115,7 +121,7 @@ if __name__ == "__main__":
         "workers_called": [],
         "messages": [],
         "contact": test_contact,
-        "sender": test_sender,
+        "sender_context": test_sender.get_relevant_content(),
         "draft": "",
         "draft_index": 0,
         "search_index": 0,

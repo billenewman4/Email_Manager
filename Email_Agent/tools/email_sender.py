@@ -1,7 +1,7 @@
 import requests
 import json
 
-def send_email(email_body: str) -> dict:
+def send_email(email_body: str, email_address: str) -> dict:
     """
     Sends an email with the given body text to a hardcoded email address.
     
@@ -14,7 +14,7 @@ def send_email(email_body: str) -> dict:
     # Create the email payload
     email_data = {
         "subject": "Your Networking email is ready!",
-        "email": "eshantarneja@gmail.com",
+        "email": email_address,
         "body": email_body
     }
     

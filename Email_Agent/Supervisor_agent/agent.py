@@ -21,7 +21,7 @@ class EmailState(TypedDict):
     workers_called: Annotated[List[str], operator.add]
     messages: List[BaseMessage] 
     contact: Contact
-    sender: Sender
+    sender_context: str
     draft: str
     draft_index: int
     search_index: int
@@ -29,13 +29,15 @@ class EmailState(TypedDict):
     AgentCommands: SupervisorCommand
 
 class SupervisorAgent:
-    def __init__(self):
+    def __init__(self, max_search_attempts: int = 3, max_redraft_attempts: int = 3):
         self.llm = ChatOpenAI(
             temperature=0.7,
             openai_api_key=get_secret("OpenAPI_KEY"), 
             model="gpt-4-0125-preview"
         )
         self.evaluation_prompt = get_prompt("student")
+        self.max_search_attempts = max_search_attempts
+        self.max_redraft_attempts = max_redraft_attempts
         
 
     def evaluate_email(self, state: EmailState) -> EmailState:
@@ -62,9 +64,9 @@ class SupervisorAgent:
             "contact_name": state["contact"].full_name,
             "contact_company": state["contact"].company_name,
             "contact_role": state["contact"].job_title,
-            "search_summary": state.get("summarized_search_results", "No research available"),
+            "search_summary": state.get("search_summary", "No research available"),
             "draft": state["draft"],
-            "sender_info": state["sender"].get_relevant_content()
+            "sender_info": state["sender_context"]
         })
         
         # Parse the evaluation response
@@ -85,11 +87,11 @@ class SupervisorAgent:
                 current_section = "details"
             elif line.strip() and current_section == "details":
                 details.append(line.strip())
-        if command == "SEARCH" and state.get("search_index") > 2:
+        if command == "SEARCH" and state.get("search_index") > self.max_search_attempts:
             command = "END"
             reason = "max search attempts reached"
             details = "No more search attempts allowed"
-        elif command == "REDRAFT" and state.get("draft_index") > 2:
+        elif command == "REDRAFT" and state.get("draft_index") > self.max_redraft_attempts:
             command = "END"
             reason = "max redraft attempts reached"
             details = "No more redraft attempts allowed"
@@ -108,11 +110,13 @@ class SupervisorAgent:
         print("="*100)
         print("\n\n\n\n\n\n\n\n\n")
         
+        # Preserve existing state fields and update only what's needed
         return {
+            **state,  # Preserve all existing state
             "input": reason,
-            "workers_called": ["supervisor"],
+            "workers_called": state["workers_called"] + ["supervisor"],
             "messages": state["messages"] + [HumanMessage(content=evaluation)],
-            "AgentCommands": supervisor_command["command"]
+            "AgentCommands": supervisor_command
         }
 """
 class EmailState(TypedDict):
@@ -120,7 +124,7 @@ class EmailState(TypedDict):
     workers_called: Annotated[List[str], operator.add] 
     messages: List[BaseMessage]
     contact: Contact
-    sender: Sender
+    sender_context: str
     draft: str
     draft_index: int
     search_index: int
@@ -135,7 +139,7 @@ if __name__ == "__main__":
     
     # Test the supervisor
     openai_key = get_secret("OpenAPI_KEY")
-    supervisor = SupervisorAgent(openai_key)
+    supervisor = SupervisorAgent()
     
     # Create test state
     test_contact = Contact({
@@ -157,7 +161,7 @@ if __name__ == "__main__":
         workers_called=[],
         messages=[],
         contact=test_contact,
-        sender=test_sender,
+        sender_context=test_sender.get_relevant_content(),
         draft="Dear Mr. Doe, I am a student interested in software engineering...",
         draft_index=0,
         search_index=0,

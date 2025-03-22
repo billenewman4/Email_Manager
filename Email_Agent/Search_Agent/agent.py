@@ -29,7 +29,7 @@ class EmailState(TypedDict):
     workers_called: Annotated[List[str], operator.add] 
     messages: List[BaseMessage]
     contact: Contact
-    sender: Sender
+    sender_context: str
     draft: str
     draft_index: int
     search_index: int
@@ -41,7 +41,7 @@ class SearchState(TypedDict):
     workers_called: Annotated[List[str], operator.add]
     messages: List[BaseMessage] 
     contact: Contact
-    sender: Sender
+    sender_context: str
     draft: str
     search_index: int
     search_query: Annotated[str, operator.add]
@@ -51,7 +51,7 @@ class SearchState(TypedDict):
     analysis_result: str
 
 class SearchAgent:
-    def __init__(self, worker_name: str, user_type: str):
+    def __init__(self, worker_name: str, user_type: str, max_search_attempts: int = 3):
         print("Initializing SearchAgent...")
         self.llm = ChatOpenAI(
             temperature=0.7,
@@ -60,6 +60,7 @@ class SearchAgent:
         )
         self.tools = get_search_tools("tavily")
         self.worker_name = worker_name
+        self.max_search_attempts = max_search_attempts
         self.system_message = get_prompt(user_type)
         self.agent = create_react_agent(
             model=self.llm,
@@ -75,7 +76,7 @@ class SearchAgent:
         print("="*100)
 
         # Safely get sender and contact info with defaults
-        sender_name = getattr(state.get("sender", {}), "name", "User")
+        sender_name = "User"  # Using default since we now have sender_context as string
         contact_name = getattr(state.get("contact", {}), "full_name", "Contact")
         company_name = getattr(state.get("contact", {}), "company_name", "Company")
         search_results = state["raw_search_results"]
@@ -115,7 +116,8 @@ class SearchAgent:
         print("\n\n\n\n\n\n\n\n\n")
 
         return {
-            "workers_called": ["summarize_search"],
+            **state,  # Preserve all existing state
+            "workers_called": state["workers_called"] + ["summarize_search"],
             "search_results": " ",
             "search_summary": summary
         }
@@ -175,7 +177,8 @@ class SearchAgent:
         
         # Update and return state with latest results
         return {
-            "workers_called": [self.worker_name],
+            **state,  # Preserve all existing state
+            "workers_called": state["workers_called"] + [self.worker_name],
             "messages": state["messages"] + [HumanMessage(content=search_results)],
             "search_index": state["search_index"] + 1,
             "search_query": search_query,  # Add the actual query used
@@ -223,6 +226,47 @@ class SearchAgent:
             "workers_called": ["analyze search"],
             "analysis_result": analysis_result  # Store the analysis result in state
         }
+        
+    def should_continue(self, state):
+        print("="*100)
+        print ("Should continue?")
+        print("="*100)
+        print("state workers called: ", state["workers_called"])
+        print("="*100)
+        print("state messages: ", state["messages"])
+        print("="*100)
+        print("state search index: ", state["search_index"])
+        print("="*100)
+        print("state search query: ", state["search_query"])
+        print("="*100)
+        print("state search summary: ", state["search_summary"])
+        print("="*100)
+        print("state analysis result: ", state["analysis_result"])
+        print("="*100)
+        print("\n\n\n\n\n\n\n\n\n")
+        # Check if we have sufficient information using analysis_result
+        print(f"Analysis result: {state.get('analysis_result', '')}")
+        if state.get("analysis_result", "").startswith("SUFFICIENT: Yes"):
+            print("\n\n\n\n\n\n\n\n\n")
+            print("="*100)
+            print("Sufficient information found. Exiting search.")
+            print("="*100)
+            print("\n\n\n\n\n\n\n\n\n")
+            return END
+        print(f"Search index: {state.get('search_index', 0)}")
+        if state.get("search_index", 0) >= self.max_search_attempts:  # Use configurable limit
+            print("\n\n\n\n\n\n\n\n\n")
+            print("="*100)
+            print("Maximum search attempts reached. Exiting search.")
+            print("="*100)
+            print("\n\n\n\n\n\n\n\n\n")
+            return END
+        print("\n\n\n\n\n\n\n\n\n")
+        print("="*100)
+        print("No sufficient information found. Continuing search.")
+        print("="*100)
+        print("\n\n\n\n\n\n\n\n\n")
+        return "Search"  # Only return to Search if neither condition is met
 
     def create_search_graph(self, state: EmailState) -> EmailState:
         # Get API key
@@ -241,7 +285,7 @@ class SearchAgent:
             "workers_called": [],
             "messages": state["messages"],
             "contact": state["contact"],
-            "sender": state["sender"],
+            "sender_context": state["sender_context"],
             "draft": state["draft"],
             "search_index": 0,
             "search_query": "",
@@ -261,50 +305,9 @@ class SearchAgent:
         builder.add_edge("Search", "Summarize")
         builder.add_edge("Summarize", "Analysis")
         
-        def should_continue(state):
-            print("="*100)
-            print ("Should continue?")
-            print("="*100)
-            print("state workers called: ", state["workers_called"])
-            print("="*100)
-            print("state messages: ", state["messages"])
-            print("="*100)
-            print("state search index: ", state["search_index"])
-            print("="*100)
-            print("state search query: ", state["search_query"])
-            print("="*100)
-            print("state search summary: ", state["search_summary"])
-            print("="*100)
-            print("state analysis result: ", state["analysis_result"])
-            print("="*100)
-            print("\n\n\n\n\n\n\n\n\n")
-            # Check if we have sufficient information using analysis_result
-            print(f"Analysis result: {state.get('analysis_result', '')}")
-            if state.get("analysis_result", "").startswith("SUFFICIENT: Yes"):
-                print("\n\n\n\n\n\n\n\n\n")
-                print("="*100)
-                print("Sufficient information found. Exiting search.")
-                print("="*100)
-                print("\n\n\n\n\n\n\n\n\n")
-                return END
-            print(f"Search index: {state.get('search_index', 0)}")
-            if state.get("search_index", 0) >= 3:  # Limit to 3 attempts
-                print("\n\n\n\n\n\n\n\n\n")
-                print("="*100)
-                print("Maximum search attempts reached. Exiting search.")
-                print("="*100)
-                print("\n\n\n\n\n\n\n\n\n")
-                return END
-            print("\n\n\n\n\n\n\n\n\n")
-            print("="*100)
-            print("No sufficient information found. Continuing search.")
-            print("="*100)
-            print("\n\n\n\n\n\n\n\n\n")
-            return "Search"  # Only return to Search if neither condition is met
-            
         builder.add_conditional_edges(
             "Analysis",
-            should_continue,
+            self.should_continue,
             {
                 END: END,
                 "Search": "Search"

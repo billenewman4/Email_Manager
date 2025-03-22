@@ -1,8 +1,8 @@
-def get_prompt(user_type: str, template: str = "") -> str:
+def get_prompt(user_type: str, template: str | None = None) -> str:
     """Returns the appropriate drafting prompt based on the user type."""
     
     # Sanitize the template to escape braces and backslashes
-    if template:
+    if template is not None and template.strip():
         sanitized_template = template.replace("\\", "\\\\").replace("{", "{{").replace("}", "}}")
         template_section = f"Template to Follow:\n{sanitized_template}\n"
     else:
@@ -10,10 +10,9 @@ def get_prompt(user_type: str, template: str = "") -> str:
 
         Hello [recipients name],
         
-        My name is [sender name] and I am reaching out because [reason for reaching out, refrence specific examples from the person's background].
+        My name is [sender name] and I am reaching out because [reason for reaching out, refrence specific examples that connect the sender and receiver].
         
-        [Insert a short, concise, description of your background and how it relates to the reason for reaching out and/or the recipient's background.]
-        
+        [Insert a short, concise, description of your background and how it relates to the reason for reaching out ALWAYS releate this to the receiver's background]
         Would you have time in the coming weeks for a 15 minute call to discuss [topic] further?
         
         Best regards,

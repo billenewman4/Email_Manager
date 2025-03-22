@@ -3,7 +3,7 @@ from typing import Annotated, List, TypedDict
 from langchain_core.messages import BaseMessage
 from langgraph.types import Command
 import operator
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI  # Updated import
 from langchain.schema.output_parser import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import HumanMessage
@@ -16,23 +16,24 @@ class EmailState(TypedDict):
     workers_called: Annotated[List[str], operator.add]
     messages: List[BaseMessage] 
     contact: Contact
-    sender: Sender
+    sender_context: str
     draft: str
     draft_index: int
     search_index: int
     AgentCommands: Command
 
 class DraftingAgent:
-    def __init__(self, worker_name: str, user_type: str):
+    def __init__(self, worker_name: str, user_type: str, template: str | None = None):
         print("Initializing DraftingAgent...")
         self.llm = ChatOpenAI(
             temperature=0.7,
             openai_api_key=get_secret("OpenAPI_KEY"), 
-            model="gpt-4-0125-preview"
+            model="gpt-4o-mini-2024-07-18"
         )
         self.prompt = get_prompt(user_type)
         self.worker_name = worker_name
         self.latest_draft = None
+        self.template = template
         print(f"Drafting agent initialized with {self.worker_name}")
 
     def draft_email(self, state: EmailState) -> EmailState:
@@ -44,7 +45,7 @@ class DraftingAgent:
         print("\n\n\n\n\n\n\n\n\n")
 
         prompt = PromptTemplate(
-            input_variables=["contact_name", "contact_company", "contact_role", "search_summary", "sender_info"],
+            input_variables=["contact_name", "contact_company", "contact_role", "search_summary", "sender_info", "template"],
             template=self.prompt
         )
         
@@ -61,7 +62,8 @@ class DraftingAgent:
             "contact_company": state["contact"].company_name,
             "contact_role": state["contact"].job_title,
             "search_summary": state.get("search_summary", "No additional context available"),
-            "sender_info": state["sender"].get_relevant_content()
+            "sender_info": state["sender_context"],
+            "template": self.template if self.template else "No specific template provided"
         })
 
         print("\n\n\n\n\n\n\n\n\n")
@@ -108,7 +110,8 @@ if __name__ == "__main__":
         resume="Computer Science student",
         career_interest="Software Engineering",
         key_accomplishments=["Dean's List"],
-        llm=agent.llm
+        llm=agent.llm,
+        email="test@example.com"  # Added required email parameter
     )
     
     test_state = EmailState(
@@ -116,7 +119,7 @@ if __name__ == "__main__":
         workers_called=[],
         messages=[],
         contact=test_contact,
-        sender=test_sender,
+        sender_context=test_sender.get_relevant_content(),
         draft="",
         draft_index=0,
         search_index=0,

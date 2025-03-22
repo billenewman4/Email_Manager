@@ -2,9 +2,10 @@ from langchain.prompts import PromptTemplate
 from langchain.schema.output_parser import StrOutputParser
 
 class Sender:
-    def __init__(self, name, resume, career_interest, key_accomplishments, llm):
+    def __init__(self, name, resume, email, career_interest, key_accomplishments, llm):
         self.name = name
         self.resume = resume
+        self.email = email
         self.career_interest = career_interest
         self.key_accomplishments = key_accomplishments
         self.relevant_content = None
