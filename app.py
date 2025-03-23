@@ -106,6 +106,16 @@ async def generate_email_batch(request: Request):
                     "contact_info": contact['contact_info']
                 }
                 
+                # If template is provided, include it in the request
+                if 'template' in body:
+                    email_request['template'] = body['template']
+                    
+                # Pass max_searches and max_redrafts if they exist in the request
+                if 'max_searches' in body:
+                    email_request['max_searches'] = body['max_searches']
+                if 'max_redrafts' in body:
+                    email_request['max_redrafts'] = body['max_redrafts']
+                
                 # Pass the dictionary directly to generate_email
                 result = await generate_email(email_request)
                 results.append({
@@ -181,8 +191,13 @@ async def generate_email(request: Request):
             'LinkedIn': contact_info.get('linkedin', 'N/A')
         })
 
-        # Initialize the graph
-        graph = create_email_graph("student", max_search_attempts=MAX_SEARCH_ATTEMPTS, max_redraft_attempts=MAX_REDRAFT_ATTEMPTS)
+        # Extract template and limits from request body if provided
+        template = body.get('template', None)
+        max_searches = body.get('max_searches', MAX_SEARCH_ATTEMPTS)
+        max_redrafts = body.get('max_redrafts', MAX_REDRAFT_ATTEMPTS)
+
+        # Initialize the graph with parameters from the request
+        graph = create_email_graph("student", max_search_attempts=max_searches, max_redraft_attempts=max_redrafts, template=template)
         
         # Create initial state
         initial_state = {
@@ -260,8 +275,13 @@ async def test_email():
             llm=llm
         )
 
-        # Initialize the graph
-        graph = create_email_graph("student", max_search_attempts=MAX_SEARCH_ATTEMPTS, max_redraft_attempts=MAX_REDRAFT_ATTEMPTS)
+        # Extract template and limits from request body if provided
+        template = body.get('template', None)
+        max_searches = body.get('max_searches', MAX_SEARCH_ATTEMPTS)
+        max_redrafts = body.get('max_redrafts', MAX_REDRAFT_ATTEMPTS)
+
+        # Initialize the graph with parameters from the request
+        graph = create_email_graph("student", max_search_attempts=max_searches, max_redraft_attempts=max_redrafts, template=template)
         
         # Create initial state
         initial_state = {
@@ -336,8 +356,13 @@ async def generate_email(request: Request):
             'LinkedIn': contact_info.get('linkedin', 'N/A')
         })
 
-        # Initialize the graph
-        graph = create_email_graph("student", max_search_attempts=MAX_SEARCH_ATTEMPTS, max_redraft_attempts=MAX_REDRAFT_ATTEMPTS)
+        # Extract template and limits from request body if provided
+        template = body.get('template', None)
+        max_searches = body.get('max_searches', MAX_SEARCH_ATTEMPTS)
+        max_redrafts = body.get('max_redrafts', MAX_REDRAFT_ATTEMPTS)
+
+        # Initialize the graph with parameters from the request
+        graph = create_email_graph("student", max_search_attempts=max_searches, max_redraft_attempts=max_redrafts, template=template)
         
         # Create initial state
         initial_state = {
@@ -369,7 +394,11 @@ async def generate_email(request: Request):
         return {
             "email_draft": final_state["draft"],
             "email_sent": email_result.get('success', False),
-            "email_error": email_result.get('error', None)
+            "email_error": email_result.get('error', None),
+            "iterations": {
+                "draft": final_state["draft_index"],
+                "search": final_state["search_index"]
+            }
         }
 
     except Exception as e:

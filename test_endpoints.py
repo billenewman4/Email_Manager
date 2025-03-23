@@ -46,6 +46,29 @@ STUDENT_TEST_DATA = {
     "max_redrafts": 1
 }
 
+# Test data with custom template
+STUDENT_TEST_DATA_WITH_TEMPLATE = {
+    **STUDENT_TEST_DATA,
+    "template": """
+    Subject: Interested in discussing ML Engineering opportunities at {{company}}
+    
+    Dear {{name}},
+    
+    I hope this email finds you well. My name is {{sender_name}} and I'm a {{sender_background}}.
+    
+    I've been following {{company}}'s work in {{industry_focus}} and was particularly impressed by {{specific_company_achievement}}.
+    
+    Given my background in {{sender_expertise}}, I believe I could contribute to your team's goals. I would appreciate the opportunity to have a brief phone call to discuss how my skills might align with your needs.
+    
+    Would you be available for a 15-minute call next week?
+    
+    Thank you for your time and consideration.
+    
+    Best regards,
+    {{sender_name}}
+    """
+}
+
 # Test data for B2B sales endpoint
 B2B_SALES_TEST_DATA = {
     "user_info": {
@@ -78,6 +101,27 @@ B2B_SALES_TEST_DATA = {
     },
     "max_searches": 1,
     "max_redrafts": 1
+}
+
+# B2B test data with custom template
+B2B_SALES_TEST_DATA_WITH_TEMPLATE = {
+    **B2B_SALES_TEST_DATA,
+    "template": """
+    Subject: Enhancing {{company}}'s Technology Infrastructure - Quick Call?
+    
+    Hello {{name}},
+    
+    I'm {{sender_name}} from {{sender_company}}, and I noticed {{company}} is leading in {{industry_focus}}.
+    
+    Our clients typically see {{benefit_1}} and {{benefit_2}} after implementing our solutions. Given your role as {{role}}, I thought you might be interested in how we could help {{company}} achieve similar results.
+    
+    Would you be open to a brief 15-minute call to discuss this further?
+    
+    Best regards,
+    {{sender_name}}
+    {{sender_title}}
+    {{sender_contact}}
+    """
 }
 
 def test_student_endpoint():
@@ -144,11 +188,75 @@ def test_b2b_sales_endpoint():
     finally:
         print("=" * 50)
 
+def test_student_endpoint_with_template():
+    """Test the /generate-email/student endpoint with a custom template."""
+    endpoint = f"{BASE_URL}/generate-email/student"
+    
+    print(f"Testing student endpoint with template: {endpoint}")
+    print("Sending request with custom template")
+    print(f"User: {STUDENT_TEST_DATA_WITH_TEMPLATE['user_info']['name']}")
+    print(f"Contact: {STUDENT_TEST_DATA_WITH_TEMPLATE['contact_info']['name']} at {STUDENT_TEST_DATA_WITH_TEMPLATE['contact_info']['company']}")
+    
+    try:
+        response = requests.post(endpoint, json=STUDENT_TEST_DATA_WITH_TEMPLATE)
+        response.raise_for_status()
+        result = response.json()
+        
+        print("\n=== Student Endpoint with Template Response ===")
+        print(f"Status Code: {response.status_code}")
+        print(f"Email Draft: {result.get('email_draft', 'No draft generated')[:200]}...")
+        print(f"Email Sent: {result.get('email_sent', False)}")
+        if not result.get('email_sent', False) and result.get('email_error'):
+            print(f"Email Error: {result.get('email_error')}")
+        print("=" * 50)
+        
+        return result
+    except requests.exceptions.RequestException as e:
+        print(f"Error testing student endpoint with template: {str(e)}")
+        return None
+
+def test_b2b_sales_endpoint_with_template():
+    """Test the /generate-email/b2bsales endpoint with a custom template."""
+    endpoint = f"{BASE_URL}/generate-email/b2bsales"
+    
+    print(f"Testing B2B sales endpoint with template: {endpoint}")
+    print("Sending request with custom template")
+    print(f"User: {B2B_SALES_TEST_DATA_WITH_TEMPLATE['user_info']['name']}")
+    print(f"Contact: {B2B_SALES_TEST_DATA_WITH_TEMPLATE['contact_info']['name']} at {B2B_SALES_TEST_DATA_WITH_TEMPLATE['contact_info']['company']}")
+    
+    try:
+        response = requests.post(endpoint, json=B2B_SALES_TEST_DATA_WITH_TEMPLATE)
+        
+        print("\n=== B2B Sales Endpoint with Template Response ===")
+        print(f"Status Code: {response.status_code}")
+        
+        try:
+            result = response.json()
+            print(f"Response Content: {result}")
+            
+            if response.status_code == 200:
+                print(f"Email Draft: {result.get('email_draft', 'No draft generated')[:200]}...")
+                print(f"Email Sent: {result.get('email_sent', False)}")
+                if not result.get('email_sent', False) and result.get('email_error'):
+                    print(f"Email Error: {result.get('email_error')}")
+            
+            return result
+        except Exception as json_err:
+            print(f"Error parsing response as JSON: {str(json_err)}")
+            print(f"Raw Response: {response.text[:500]}")
+            return None
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Request Exception: {str(e)}")
+        return None
+    finally:
+        print("=" * 50)
+
 def main():
     """Run tests based on command line arguments."""
     parser = argparse.ArgumentParser(description='Test Email Manager API endpoints')
-    parser.add_argument('--endpoint', choices=['student', 'b2b', 'all'], default='all',
-                        help='Which endpoint to test (student, b2b, or all)')
+    parser.add_argument('--endpoint', choices=['student', 'b2b', 'student-template', 'b2b-template', 'all'], default='all',
+                        help='Which endpoint to test (student, b2b, student-template, b2b-template, or all)')
     
     args = parser.parse_args()
     
@@ -157,6 +265,12 @@ def main():
     
     if args.endpoint in ['b2b', 'all']:
         test_b2b_sales_endpoint()
+        
+    if args.endpoint in ['student-template', 'all']:
+        test_student_endpoint_with_template()
+        
+    if args.endpoint in ['b2b-template', 'all']:
+        test_b2b_sales_endpoint_with_template()
 
 if __name__ == "__main__":
     main()
