@@ -1,11 +1,49 @@
-__pycache__
-*.pyc
-*.pyo
-*.pyd
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 .Python
+
+# Virtual environments
 env/
 venv/
+.venv/
+
+# Environment files
 .env
+*.env
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Log files
 *.log
-.git
-.gitignore 
+
+# Test directories and files
+tests/
+test_*.py
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artifacts
+.DS_Store
+.gcloudignore
+*.yaml
+!app.yaml
+!cloudbuild.yaml
+
+# Large file directories that aren't necessary for runtime
+**/__pycache__/

@@ -1,8 +1,13 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Union
+import csv
+from io import StringIO
+
+# Use secrets module from the same directory
 from Email_Agent.Tools.secrets_ret import get_secret
 
 class EmailSender:
@@ -10,11 +15,9 @@ class EmailSender:
         """Initialize the email sender with Gmail SMTP settings"""
         self.smtp_server = "smtp.gmail.com"
         self.smtp_port = 587
-        self.sender_email = "15237bn@gmail.com"
+        self.sender_email = get_secret("EMAIL_USER")
         # Get password from environment variable
-        self.password = "koih olxm uzol seqr"
-        # self.password = get_secret("EMAIL_PASS")
-        print(self.password)
+        self.password = get_secret("EMAIL_PASS")
         
         if not self.password:
             raise ValueError("GMAIL_APP_PASSWORD environment variable not set")
@@ -22,7 +25,8 @@ class EmailSender:
     def create_message(self, 
                       to_email: str, 
                       subject: str, 
-                      body: str) -> MIMEMultipart:
+                      body: str,
+                      attachments: Optional[List[Dict[str, Union[str, bytes]]]] = None) -> MIMEMultipart:
         """Create a MIME message with both HTML and plain text versions"""
         message = MIMEMultipart("alternative")
         message["Subject"] = subject
@@ -39,13 +43,24 @@ class EmailSender:
         # Attach both versions
         message.attach(text_part)
         message.attach(html_part)
+        
+        # Add attachments if provided
+        if attachments:
+            for attachment in attachments:
+                part = MIMEApplication(
+                    attachment['content'],
+                    Name=attachment['filename']
+                )
+                part['Content-Disposition'] = f'attachment; filename="{attachment["filename"]}"'
+                message.attach(part)
 
         return message
 
     def send_email(self, 
                   to_email: str, 
                   body: str, 
-                  subject: Optional[str] = "Your Networking email is ready!") -> Dict:
+                  subject: Optional[str] = "Your Networking email is ready!",
+                  attachments: Optional[List[Dict[str, Union[str, bytes]]]] = None) -> Dict:
         """
         Send an email using Gmail SMTP
         
@@ -67,7 +82,7 @@ class EmailSender:
                 server.login(self.sender_email, self.password)
                 
                 # Create message
-                message = self.create_message(to_email, subject, body)
+                message = self.create_message(to_email, subject, body, attachments)
                 
                 # Send email
                 server.send_message(message)
@@ -87,20 +102,22 @@ class EmailSender:
                 "to": to_email
             }
 
-def send_email(email_body: str, email_address: str) -> Dict:
+def send_email(email_body: str, email_address: str, csv_data: Optional[List[Dict]] = None) -> Dict:
     """
     Wrapper function to maintain compatibility with existing code
     
     Args:
         email_body (str): The body text of the email
         email_address (str): Recipient's email address
+        csv_data: Parameter maintained for backwards compatibility but no longer used
         
     Returns:
         dict: Response indicating success or failure
     """
     try:
         sender = EmailSender()
-        return sender.send_email(email_address, email_body)
+        # No longer using attachments
+        return sender.send_email(email_address, email_body, attachments=None)
     except Exception as e:
         return {
             "success": False,

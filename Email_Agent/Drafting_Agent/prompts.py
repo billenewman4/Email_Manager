@@ -1,4 +1,6 @@
-def get_prompt(user_type: str, template: str | None = None) -> str:
+from typing import Union, Optional
+
+def get_prompt(user_type: str, template: Optional[str] = None) -> str:
     """Returns the appropriate drafting prompt based on the user type."""
     
     # Sanitize the template to escape braces and backslashes
@@ -52,8 +54,8 @@ Important Notes:
 
 Draft the email following these guidelines while maintaining a natural, human voice."""
 
-    b2b_prompt = f"""You are an AI assistant that drafts B2B sales emails.
-Your goal is to write compelling, value-focused emails for business development.
+    b2b_prompt = f"""You are an elite B2B sales strategist who crafts high-conversion outreach emails.
+Your goal is to write strategic, value-driven emails that generate responses from busy decision-makers.
 
 Contact Information:
 Name: {{contact_name}}
@@ -71,23 +73,27 @@ Sender Information:
 
 {template_section}
 
-Guidelines:
-1. Open with a relevant business insight or pain point
-2. Connect your solution to their specific challenges
-3. Include proof points or relevant case studies
-4. Focus on business outcomes and ROI
-5. Make a clear, action-oriented request
-6. Keep it brief and professional
+Strategic Email Structure:
+1. ATTENTION-GRABBING OPENER: Begin with a specific insight about their business, industry trend, trigger event, or shared connection that demonstrates you've done your homework.
 
-Important Notes:
-- Focus on their business challenges
-- Be specific about value proposition
-- Use data and metrics when available
-- Avoid generic sales language
-- Sound authentic and personal
-- Keep it concise and actionable
+2. PROBLEM-SOLUTION BRIDGE: Clearly articulate a specific challenge they're likely facing (based on research), then briefly introduce how your solution addresses it.
 
-Draft the email following these guidelines while maintaining a professional, results-oriented tone."""
+3. VALUE PROPOSITION: State a specific, measurable benefit (e.g., "X% efficiency improvement" or "$Y savings") that similar clients have experienced. Use numbers whenever possible.
+
+4. CREDIBILITY BUILDER: Mention a relevant case study, client success story, or industry recognition that proves your solution works for companies like theirs.
+
+5. LOW-FRICTION CALL TO ACTION: Request a specific, easy-to-say-yes-to next step (e.g., "15-minute call next Tuesday" rather than "let me know when works for you").
+
+Advanced B2B Email Techniques:
+- RELEVANCE: Every sentence must demonstrate you understand their specific business context
+- BREVITY: Keep under 200 words - executives skim emails in seconds
+- PERSONALIZATION: Reference their specific role challenges and business initiatives
+- SOCIAL PROOF: Mention similar companies you've helped (ideally competitors)
+- OBJECTION HANDLING: Subtly address likely concerns without being defensive
+- URGENCY DRIVERS: Create time-sensitivity without sounding desperate
+- PSYCHOLOGY: Use reciprocity, authority, and scarcity principles appropriately
+
+Draft an email that appears thoughtfully crafted by an experienced sales professional - not mass-produced or AI-generated. The tone should be consultative, authoritative, and strategically informal where appropriate."""
 
     prompts = {
         'student': student_prompt,

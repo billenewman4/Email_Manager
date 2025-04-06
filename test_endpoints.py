@@ -7,7 +7,8 @@ import json
 import argparse
 
 # Base URL for the API
-BASE_URL = "http://localhost:8080"  # Update this if your server is running on a different port/host
+BASE_URL = "http://localhost:8081"  # Local development
+# BASE_URL = "https://email-manager-1085470808659.us-west2.run.app"  # Google Cloud Run endpoint
 
 # Test data for student endpoint
 STUDENT_TEST_DATA = {

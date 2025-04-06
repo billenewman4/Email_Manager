@@ -44,15 +44,26 @@ async def options_email(request: Request):
         },
     )
 
-# Add logging middleware
+# Add structured logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    print(f"\n=== Incoming {request.method} Request ===")
-    print(f"URL: {request.url}")
-    print(f"Headers: {request.headers}")
-    response = await call_next(request)
-    print(f"Response Status: {response.status_code}")
-    return response
+    print(f"\n{'='*50}")
+    print(f"REQUEST: {request.method} {request.url.path}")
+    
+    # Only log important headers, not all of them
+    important_headers = ['content-type', 'user-agent', 'origin']
+    headers_to_log = {k: v for k, v in request.headers.items() if k.lower() in important_headers}
+    print(f"HEADERS: {headers_to_log}")
+    
+    try:
+        response = await call_next(request)
+        print(f"RESPONSE: Status {response.status_code}")
+        if response.status_code >= 400:
+            print(f"ERROR: HTTP {response.status_code} error occurred")
+        return response
+    except Exception as e:
+        print(f"EXCEPTION: Unhandled error in middleware: {str(e)}")
+        raise
 
 @app.post("/generate-email/student/batch")
 async def generate_email_batch(request: Request):
@@ -139,7 +150,9 @@ async def generate_email_batch(request: Request):
         }
 
     except Exception as e:
-        print(f"Batch processing failed: {str(e)}")
+        print(f"ERROR: Batch processing failed: {str(e)}")
+        import traceback
+        print(f"TRACEBACK: {traceback.format_exc()}")
         return JSONResponse(
             status_code=500,
             content={"error": f"Batch processing failed: {str(e)}"}
@@ -154,12 +167,10 @@ async def generate_email(request: Request):
         else:
             body = await request.json()
             
-        print("\n=== Email Generation Request ===")
-        print(f"Request Body: {body}")
-        
-        print("\n=== New Email Generation Request ===")
-        print(f"Contact Name: {body['contact_info']['name']}")
-        print(f"Company: {body['contact_info']['company']}")
+        print("\n=== STUDENT EMAIL GENERATION ====")
+        print(f"CONTACT: {body['contact_info']['name']} at {body['contact_info']['company']}")
+        print(f"SENDER: {body['user_info']['name']}")
+        print(f"TEMPLATE: {'Custom template provided' if body.get('template') else 'Using default template'}")
 
         # Initialize LLM
         openai_api_key = get_secret("OpenAPI_KEY")
@@ -220,7 +231,7 @@ async def generate_email(request: Request):
 
         email_body = final_state["draft"] + "\n\n" + "\n".join(final_state["search_summary"])
 
-        # Send email using the stored email address
+        # Send email with only the email body and search results
         email_result = send_email(email_body, user_email)
         
         if not email_result.get('success'):
@@ -233,7 +244,9 @@ async def generate_email(request: Request):
         }
 
     except Exception as e:
-        print(f"Error generating email: {str(e)}")
+        print(f"ERROR: Failed to generate B2B email: {str(e)}")
+        import traceback
+        print(f"TRACEBACK: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/test")
@@ -313,7 +326,9 @@ async def test_email():
         }
 
     except Exception as e:
-        print(f"Error generating test email: {str(e)}")
+        print(f"ERROR: Failed to generate test email: {str(e)}")
+        import traceback
+        print(f"TRACEBACK: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-email/b2bsales")
@@ -325,12 +340,10 @@ async def generate_email(request: Request):
         else:
             body = await request.json()
             
-        print("\n=== Email Generation Request B2B ===")
-        print(f"Request Body: {body}")
-        
-        print("\n=== New Email Generation Request ===")
-        print(f"Contact Name: {body['contact_info']['name']}")
-        print(f"Company: {body['contact_info']['company']}")
+        print("\n=== B2B SALES EMAIL GENERATION ====")
+        print(f"CONTACT: {body['contact_info']['name']} at {body['contact_info']['company']}")
+        print(f"SENDER: {body['user_info']['name']}")
+        print(f"TEMPLATE: {'Custom template provided' if body.get('template') else 'Using default template'}")
 
         # Initialize LLM
         openai_api_key = get_secret("OpenAPI_KEY")
@@ -385,7 +398,7 @@ async def generate_email(request: Request):
 
         email_body = final_state["draft"] + "\n\n" + "\n".join(final_state["search_summary"])
 
-        # Send email using the stored email address
+        # Send email with only the email body and search results
         email_result = send_email(email_body, user_email)
         
         if not email_result.get('success'):
@@ -402,7 +415,9 @@ async def generate_email(request: Request):
         }
 
     except Exception as e:
-        print(f"Error generating email: {str(e)}")
+        print(f"ERROR: Failed to generate B2B email: {str(e)}")
+        import traceback
+        print(f"TRACEBACK: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
     
 
@@ -412,6 +427,8 @@ async def generate_email(request: Request):
 async def root():
     return {"message": "Email Generation API is running"}
 
+# This conditional allows the app to be run directly during development
+# but also allows gunicorn to import the app object for production
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port)

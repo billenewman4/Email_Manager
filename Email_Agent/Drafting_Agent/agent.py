@@ -22,8 +22,10 @@ class EmailState(TypedDict):
     search_index: int
     AgentCommands: Command
 
+from typing import Optional
+
 class DraftingAgent:
-    def __init__(self, worker_name: str, user_type: str, template: str | None = None):
+    def __init__(self, worker_name: str, user_type: str, template: Optional[str] = None):
         print("Initializing DraftingAgent...")
         self.llm = ChatOpenAI(
             temperature=0.7,

@@ -30,7 +30,9 @@ class EmailState(TypedDict):
     search_summary: Annotated[str, operator.add]
     AgentCommands: Command
 
-def create_email_graph(user_type: str, max_search_attempts: int = 3, max_redraft_attempts: int = 3, template: str | None = None):
+from typing import Optional
+
+def create_email_graph(user_type: str, max_search_attempts: int = 3, max_redraft_attempts: int = 3, template: Optional[str] = None):
 
     # Initialize search agent with required arguments
     search_agent = SearchAgent(

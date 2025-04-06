@@ -1,19 +1,10 @@
-# Build stage
-FROM --platform=linux/amd64 python:3.9-slim as builder
+FROM python:3.9-slim
 
 WORKDIR /app
 
-# Copy and install requirements
+# Copy requirements and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Final stage
-FROM --platform=linux/amd64 python:3.9-slim
-
-WORKDIR /app
-
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.9/site-packages/ /usr/local/lib/python3.9/site-packages/
 
 # Copy application code
 COPY . .
@@ -21,8 +12,10 @@ COPY . .
 # Make port 8080 available
 EXPOSE 8080
 
-# Set debug mode
-ENV DEBUG=true
+# Set environment variables
+ENV PORT=8080
+ENV PYTHONUNBUFFERED=1
+ENV DEBUG=false
 
-# Start the app with explicit error reporting and debug mode
-CMD exec python -u app.py 2>&1
+# Use direct Python command to run the application
+CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -41,7 +41,7 @@ COMMAND: [REDRAFT/SEARCH/END]
 REASON: [Brief explanation of your decision]
 DETAILS: [If REDRAFT: specific critiques and suggestions, If SEARCH: specific information to look for, If END: brief confirmation of why email is ready]"""
 
-    b2b_prompt = f"""You are a supervisor evaluating a B2B sales email draft. Your job is to determine if the email needs revision, requires additional research about the prospect, or is ready to send.
+    b2b_prompt = f"""You are a strategic B2B sales supervisor evaluating an outreach email draft. Your job is to determine if the email will effectively convert, needs more research about the prospect, or requires revision to maximize response rates.
 
 Contact Information:
 Name: {{contact_name}}
@@ -57,28 +57,29 @@ Current Draft:
 Sender Information:
 {{sender_info}}
 
-Evaluate the email based on these criteria:
-1. Does it effectively leverage the research about the prospect's pain points?
-2. Is the tone appropriate for a B2B sales context?
-3. Is it personalized to the prospect's specific business challenges?
-4. Does it have a clear value proposition and call to action?
-5. Does it avoid common sales email mistakes (being too pushy, too generic, or too feature-focused)?
-6. Is the email focused on business outcomes and ROI?
-7. Does it establish credibility through relevant case studies or metrics?
-8. Is the email concise and focused?
-9. Does it sound authentic and not overly automated?
+Evaluate the email based on these strategic B2B criteria:
+1. PROBLEM-SOLUTION FIT: Does it clearly identify the prospect's pain points and connect them to your solution?
+2. PERSONALIZATION: Is it tailored to the prospect's industry, role, and specific business challenges?
+3. VALUE PROPOSITION: Does it articulate a compelling and quantifiable business value (ROI, time savings, revenue growth)?
+4. SOCIAL PROOF: Does it strategically include relevant case studies, metrics, or client success stories?
+5. TONE & APPROACH: Is it consultative rather than transactional? Does it position you as a strategic advisor?
+6. CALL TO ACTION: Is the next step clear, specific, and low-barrier to generate a response?
+7. BREVITY & IMPACT: Is every sentence earning its place? Is it scannable for busy executives (under 200 words)?
+8. AUTHENTICITY: Does it sound like a genuine business conversation rather than a generic sales pitch?
+9. TRIGGER EVENTS: Does it leverage recent company news, market changes, or other timely drivers?
+10. OBJECTION HANDLING: Does it preemptively address likely concerns without overexplaining?
 
 Response options are:
-REDRAFT: The email needs revision due to messaging, value proposition, or personalization issues.
-SEARCH: More research needed about prospect's business challenges or recent developments.
-END: The email is ready to send.
+REDRAFT: The email needs strategic revision to improve conversion potential.
+SEARCH: Additional competitive or company intelligence needed to strengthen the approach.
+END: The email is strategically sound and ready to deploy.
 
-Please evaluate with a focus on sales effectiveness.
+As a sales strategist, evaluate with a focus on what will generate engagement and responses.
 
 Respond in the following format:
 COMMAND: [REDRAFT/SEARCH/END]
-REASON: [Brief explanation of your decision]
-DETAILS: [If REDRAFT: specific sales messaging improvements, If SEARCH: specific business intelligence needed, If END: confirmation of sales readiness]"""
+REASON: [Brief explanation focused on sales conversion impact]
+DETAILS: [If REDRAFT: specific tactical improvements, If SEARCH: specific intelligence gaps, If END: confirmation of strategic effectiveness]"""
 
     prompts = {
         'student': student_prompt,

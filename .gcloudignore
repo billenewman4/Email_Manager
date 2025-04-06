@@ -1,0 +1,76 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore, with the addition of
+# "#!include" directives (which insert the entries of the given .gitignore-style
+# file at that point).
+
+# For syntax information, see:
+# https://cloud.google.com/sdk/gcloud/reference/topic/gcloudignore
+
+# Explicitly include the cloudbuild.yaml file
+#!include:.gitignore
+
+# Ignore Python cache files and bytecode
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+.venv/
+pip-log.txt
+
+# Ignore virtual environment directories
+venv/
+env/
+.env/
+.venv/
+
+# Ignore all environment files
+.env
+*.env
+
+# Ignore version control system files
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# Ignore IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Ignore logs
+*.log
+logs/
+
+# Ignore local test files
+tests/
+test_*.py
+
+# Keep Docker-related files needed for building
+# DO NOT ignore Dockerfile - it's essential for the build
+# Dockerfile*
+docker-compose*
+.dockerignore
+
+# Ignore documentation files
+docs/
+*.md
+!README.md
+
+# Ignore Apple metadata files
+.DS_Store
+**/.DS_Store
+
+# Ignore large directories not needed for runtime (adjust as needed)
+.git/
+Email_Agent/agent/
+.venv/
+
+# Keep all necessary application files
+!app.py
+!requirements.txt
+!cloudbuild.yaml

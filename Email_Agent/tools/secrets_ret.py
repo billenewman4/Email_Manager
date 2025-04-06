@@ -1,45 +1,58 @@
 import os
 import sys
-from google.cloud import secretmanager
 import logging
 from dotenv import load_dotenv
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Initialize the Secret Manager client
-client = secretmanager.SecretManagerServiceClient()
-
-# Hardcoded project ID
-PROJECT_ID = "primeval-truth-431023-f9"
-
-#Load environment variables
+# Load environment variables from .env file if it exists
 load_dotenv()
+
+# Check if we're in local development mode
+IS_LOCAL_DEV = os.environ.get('DEBUG', 'false').lower() == 'true'
+
+# Only import Secret Manager if we're not in local development mode
+if not IS_LOCAL_DEV:
+    try:
+        from google.cloud import secretmanager
+        # Initialize the Secret Manager client
+        client = secretmanager.SecretManagerServiceClient()
+        # Hardcoded project ID
+        PROJECT_ID = "primeval-truth-431023-f9"
+        logger.info("Using Google Secret Manager for secrets")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Secret Manager: {e}")
+        IS_LOCAL_DEV = True
+else:
+    logger.info("Running in local development mode, using environment variables for secrets")
 
 def get_secret(secret_name):
     logger.info(f"Attempting to retrieve secret: {secret_name}")
     
-    # Check environment variables
-    env_value = os.getenv(secret_name)
-    if env_value:
-        print(f"Found secret {secret_name} in environment variables")
-        return env_value
-    logger.info(f"Secret {secret_name} not found in environment variables")
+    # First check if the secret is available as an environment variable
+    env_var = os.environ.get(secret_name)
+    if env_var:
+        logger.info(f"Retrieved secret {secret_name} from environment variables")
+        return env_var
     
-    # Try Secret Manager
-    if client:
+    # If not in local dev mode and environment variable not found, try Google Secret Manager
+    if not IS_LOCAL_DEV:
         try:
-            print(f"Attempting to retrieve {secret_name} from Secret Manager")
             name = f"projects/{PROJECT_ID}/secrets/{secret_name}/versions/latest"
             response = client.access_secret_version(request={"name": name})
-            secret_value = response.payload.data.decode('UTF-8')
-            logger.info(f"Successfully retrieved {secret_name} from Secret Manager")
-            return secret_value
+            payload = response.payload.data.decode("UTF-8")
+            logger.info(f"Retrieved secret {secret_name} from Secret Manager")
+            return payload
         except Exception as e:
-            logger.error(f"Error accessing {secret_name} from Secret Manager: {str(e)}", exc_info=True)
-            logger.error(f"Full error details:", exc_info=True)
-    else:
-        logger.error("Secret Manager client not initialized")
+            logger.error(f"Error retrieving secret {secret_name} from Secret Manager: {e}")
+            # Fall back to environment variables
+            logger.warning(f"Falling back to environment variables for {secret_name}")
+    
+    # If we're in local dev mode or Secret Manager failed, look for a default value
+    if secret_name == "OPENAI_API_KEY":
+        # Warn about missing API key
+        logger.warning("OPENAI_API_KEY not found. Please set this in your environment or .env file.")
     
     return None
 
