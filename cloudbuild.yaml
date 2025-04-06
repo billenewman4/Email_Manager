@@ -43,7 +43,7 @@ steps:
 
 # Store images in Container Registry
 images:
-- 'gcr.io/$PROJECT_ID/email-manager:$COMMIT_SHA'
+- 'gcr.io/$PROJECT_ID/email-manager:$BUILD_ID'
 
 # Timeout for the entire build process
 timeout: '1800s'
