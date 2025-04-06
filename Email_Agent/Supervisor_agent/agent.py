@@ -87,19 +87,30 @@ class SupervisorAgent:
                 current_section = "details"
             elif line.strip() and current_section == "details":
                 details.append(line.strip())
+        # Ensure command is never None - default to END if no valid command found
+        if command not in ["SEARCH", "REDRAFT", "END"]:
+            command = "END"
+            reason = reason or "No valid command detected from evaluation"
+            if not details:
+                details = ["Could not determine next action, completing the process"]
+
+        # Check if maximum attempts are reached
         if command == "SEARCH" and state.get("search_index") > self.max_search_attempts:
             command = "END"
             reason = "max search attempts reached"
-            details = "No more search attempts allowed"
+            details = ["No more search attempts allowed"]
         elif command == "REDRAFT" and state.get("draft_index") > self.max_redraft_attempts:
             command = "END"
             reason = "max redraft attempts reached"
-            details = "No more redraft attempts allowed"
+            details = ["No more redraft attempts allowed"]
+        
+        # Ensure details is properly converted to a string
+        details_str = "\n".join(details) if isinstance(details, list) else str(details)
         
         supervisor_command = SupervisorCommand(
             command=command,
             reason=reason,
-            details="\n".join(details)  # Join all detail line
+            details=details_str  # Join all detail lines
         )
 
         print("\n\n\n\n\n\n\n\n\n")
